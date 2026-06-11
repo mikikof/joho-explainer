@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>情報 解説ツール ｜ mikikof-lab</title>
+<style>
+  :root{
+    --ink:#10161f; --muted:#6b7480; --line:#e6eaf1; --hair:#e8ecf3; --hair2:#cdd6e3;
+    --bg:#f6f7f9; --card:#ffffff; --accent:#2f55d4;
+    --ok-bg:#eaeffc; --ok-bd:#c6d2f4;
+    --mono:ui-monospace,"SF Mono","JetBrains Mono","Roboto Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0; background:var(--bg); color:var(--ink); line-height:1.65;
+    font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic","YuGothic",Meiryo,sans-serif;}
+  .wrap{max-width:880px; margin:0 auto; padding:0 16px 64px}
+
+  header.top{position:relative; padding:40px 2px 22px; margin-bottom:26px; border-bottom:1px solid var(--hair)}
+  .eyebrow{font-family:var(--mono); font-size:11px; letter-spacing:.14em; color:var(--muted); display:flex; align-items:center; gap:9px; margin-bottom:16px}
+  .eyebrow .dot{width:7px; height:7px; border-radius:50%; background:var(--accent); box-shadow:0 0 0 4px rgba(47,85,212,.13)}
+  header.top h1{margin:0; font-size:32px; line-height:1.12; font-weight:700; letter-spacing:.015em}
+  header.top .enlabel{font-family:var(--mono); font-size:11.5px; letter-spacing:.28em; text-transform:uppercase; color:var(--accent); margin-top:10px}
+  header.top .dek{margin:14px 0 0; font-size:14px; color:var(--muted); max-width:48ch; font-weight:500}
+
+  .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:16px}
+  a.card{display:flex; flex-direction:column; text-decoration:none; color:inherit;
+    background:var(--card); border:1px solid var(--line); border-radius:12px; overflow:hidden;
+    box-shadow:0 1px 3px rgba(20,30,50,.05); transition:.16s}
+  a.card:hover{border-color:var(--accent); box-shadow:0 6px 22px rgba(20,30,50,.10); transform:translateY(-2px)}
+  .thumb{height:96px; display:flex; align-items:center; justify-content:center; border-bottom:1px solid var(--line); background:#fbfcfe}
+  .thumb svg{display:block}
+  .card .body{padding:16px 18px 18px}
+  .card .tag{font-family:var(--mono); font-size:10.5px; letter-spacing:.12em; color:var(--accent); text-transform:uppercase}
+  .card h2{margin:6px 0 6px; font-size:19px; font-weight:700; letter-spacing:.01em}
+  .card p{margin:0; font-size:13.5px; font-weight:500; color:#374151; line-height:1.6}
+  .card .go{margin-top:13px; font-size:13px; font-weight:700; color:var(--accent); display:inline-flex; align-items:center; gap:6px}
+  .card .go svg{width:14px; height:14px}
+
+  footer{font-size:12px; color:var(--muted); margin-top:34px}
+  @media (max-width:560px){ header.top h1{font-size:26px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="eyebrow"><span class="dot"></span>MIKIKOF-LAB · 情報Ⅰ</div>
+    <h1>情報 解説ツール</h1>
+    <div class="enlabel">Interactive Explainers</div>
+    <p class="dek">スライダーやボタンを動かしながら、情報の仕組みを目で確かめられる解説ツールです。図はすべてその場で計算して描いています。</p>
+  </header>
+
+  <div class="grid">
+    <a class="card" href="sampling-theorem.html">
+      <div class="thumb">
+        <svg width="150" height="60" viewBox="0 0 150 60" fill="none" aria-hidden="true">
+          <path d="M8 30 C 18 12 26 12 36 30 C 46 48 54 48 64 30 C 74 12 82 12 92 30 C 102 48 110 48 120 30 C 128 16 134 14 142 24" stroke="#1b2330" stroke-width="2.4" stroke-linecap="round"/>
+          <g fill="#2f55d4"><circle cx="8" cy="30" r="3.4"/><circle cx="36" cy="30" r="3.4"/><circle cx="64" cy="30" r="3.4"/><circle cx="92" cy="30" r="3.4"/><circle cx="120" cy="30" r="3.4"/></g>
+        </svg>
+      </div>
+      <div class="body">
+        <div class="tag">Sampling Theorem</div>
+        <h2>標本化定理</h2>
+        <p>標本化周波数は、なぜ「最大周波数の2倍以上」必要なのか。エイリアシング（折り返し）を、波と数直線、車輪のコマ送りで確かめます。</p>
+        <span class="go">ひらく
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg>
+        </span>
+      </div>
+    </a>
+
+    <a class="card" href="color-digitization.html">
+      <div class="thumb">
+        <svg width="120" height="60" viewBox="0 0 120 60" aria-hidden="true">
+          <circle cx="48" cy="26" r="17" fill="#d83a3a" opacity=".82"/>
+          <circle cx="60" cy="36" r="17" fill="#1f9d57" opacity=".68"/>
+          <circle cx="72" cy="26" r="17" fill="#2f55d4" opacity=".68"/>
+        </svg>
+      </div>
+      <div class="body">
+        <div class="tag">RGB &amp; Color Depth</div>
+        <h2>色のデジタル化</h2>
+        <p>色は赤・緑・青の3つの数。ビットを増やすと表せる色がどこまで増えるのか。混色・2進数・階調・減法混色との違い（物理）まで触れます。</p>
+        <span class="go">ひらく
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg>
+        </span>
+      </div>
+    </a>
+  </div>
+
+  <footer>mikikof-lab ／ 情報 解説ツール（単一HTML・外部ライブラリ不使用）</footer>
+</div>
+</body>
+</html>
