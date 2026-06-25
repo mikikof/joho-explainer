@@ -8,6 +8,8 @@
 ## 収録
 - `sampling-theorem.html` … 標本化定理
 - `color-digitization.html` … 色のデジタル化（RGB・ビット深度・階調）
+- `image-resolution.html` … 画像の解像度（画素・データ量）
+- `compression.html` … データ圧縮（可逆＝ランレングス・ハフマン／非可逆＝写真JPEG・音MP3・拡張子）
 
 ## 更新
 開発正本は my-company（private）の `.company/media/webツール/情報/`。

@@ -1,0 +1,1864 @@
+<!doctype html>
+<!--
+  ============================================================================
+  情報 解説Webツール：データ圧縮のしくみ（mikikof-lab / edu-explainer-kit 情報版）
+  正典＝examples/sampling-theorem.html。本ファイルは A 型（状態判定バナー）の派生。
+  ・中核の見せ場＝「縮んだ / 縮まなかった（増えた）」のバナー。
+  ・主図＝サイズ比較バー（元 vs 圧縮後）を離散セルで描く（自作canvas）。
+  ・過程＝ハフマン木の組み立て／ランレングスのスキャンを別canvasで見せる。
+  ・多層サポート：はじめに → 基礎popout → 過程 → 本デモ（バナー）→ 深掘りpopout → 用語。
+  外部依存ゼロ（CDN・KaTeX・Chart.js 不使用）。localStorage 禁止。ビルド工程なし。
+  ============================================================================
+-->
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>データ圧縮のしくみ ｜ mikikof-lab</title>
+<style>
+  :root{
+    --ink:#10161f; --muted:#6b7480; --line:#e6eaf1; --hair:#e8ecf3; --hair2:#cdd6e3;
+    --bg:#f6f7f9; --card:#ffffff;
+    --accent:#2f55d4; --orange:#cf5a18;
+    --ok:#2f55d4;  --ok-bg:#eaeffc; --ok-bd:#c6d2f4; --ok-tint:#f4f6fd;
+    --warn:#d8362e; --warn-bg:#fdecea; --warn-bd:#f3c4c1; --warn-tint:#fdf5f4;
+    --wave:#1b2330;
+    --mono:ui-monospace,"SF Mono","JetBrains Mono","Roboto Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic","YuGothic",Meiryo,sans-serif;
+    line-height:1.65;
+  }
+  .wrap{max-width:920px; margin:0 auto; padding:0 16px 56px}
+
+  header.top{
+    position:relative;
+    padding:34px 2px 20px;
+    margin-bottom:22px;
+    border-bottom:1px solid var(--hair);
+  }
+  header.top .eyebrow{
+    font-family:var(--mono); font-size:11px; letter-spacing:.14em;
+    color:var(--muted); display:flex; align-items:center; gap:9px; margin-bottom:16px;
+  }
+  header.top .eyebrow .dot{
+    width:7px; height:7px; border-radius:50%; flex:0 0 auto;
+    background:var(--accent); box-shadow:0 0 0 4px rgba(47,85,212,.13);
+  }
+  header.top h1{
+    margin:0; font-size:34px; line-height:1.08; font-weight:700;
+    letter-spacing:.015em; color:var(--ink);
+  }
+  header.top .enlabel{
+    font-family:var(--mono); font-size:11.5px; letter-spacing:.28em; text-transform:uppercase;
+    color:var(--accent); margin-top:10px;
+  }
+  header.top .dek{
+    margin:15px 0 0; font-size:14px; color:var(--muted); max-width:44ch;
+  }
+  header.top .sig{ position:absolute; top:30px; right:2px; width:148px; height:48px; }
+  header.top .sig rect, header.top .sig path{ stroke:var(--hair2); fill:none; }
+  header.top .sig .f{ fill:var(--accent); stroke:none; }
+
+  .banner{
+    border:1px solid; border-radius:10px; padding:12px 16px; margin-bottom:14px;
+    font-weight:700; font-size:15px; transition:.2s;
+  }
+  .banner small{display:block; font-weight:400; font-size:13px; margin-top:4px; line-height:1.55}
+  .banner.ok{background:var(--ok-bg); border-color:var(--ok-bd); color:var(--ok)}
+  .banner.warn{background:var(--warn-bg); border-color:var(--warn-bd); color:var(--warn)}
+
+  .canvas-box{
+    background:#fff; border:1px solid var(--line); border-radius:10px;
+    overflow:hidden; transition:background .25s; margin-bottom:16px;
+  }
+  .canvas-box.ok{background:var(--ok-tint)}
+  .canvas-box.warn{background:var(--warn-tint)}
+  canvas{display:block; width:100%; height:auto}
+
+  .panel{
+    background:var(--card); border:1px solid var(--line); border-radius:10px;
+    padding:16px 18px; margin-bottom:16px; box-shadow:0 1px 3px rgba(20,30,50,.05);
+  }
+
+  .presets{display:flex; flex-wrap:wrap; gap:9px; margin-top:14px}
+  .presets button{
+    border:1px solid var(--line); background:#fff; border-radius:999px;
+    padding:7px 15px; font-size:13.5px; cursor:pointer; color:var(--ink);
+    font-family:inherit; transition:.15s;
+  }
+  .presets button:hover{border-color:var(--ok); color:var(--ok); background:var(--ok-bg)}
+  .presets button .tag{font-family:var(--mono); font-size:11px; color:var(--muted); margin-left:7px}
+  .presets button:hover .tag{color:var(--ok)}
+
+  .readouts{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px}
+  .ro{background:#f7f9fc; border:1px solid var(--line); border-radius:8px; padding:10px 12px}
+  .ro .k{font-size:12px; color:var(--muted)}
+  .ro .v{font-size:18px; font-weight:700; font-family:var(--mono); font-variant-numeric:tabular-nums; margin-top:2px}
+  .ro.alias{background:var(--warn-tint); border-color:var(--warn-bd)}
+  .ro.alias .v{color:var(--warn)}
+
+  h2.sec{font-size:15px; color:var(--orange); margin:0 0 11px; border-bottom:2px solid var(--orange); padding-bottom:4px; display:inline-block}
+  .note{font-size:13.5px; font-weight:500; color:#374151; margin:0 0 12px}
+  .note:last-child{margin-bottom:0}
+  .note b{color:var(--ink)}
+  .formula{
+    font-family:"Cambria Math","Latin Modern Math","Times New Roman",serif;
+    font-size:18px; background:#f7f9fc; border:1px solid var(--line);
+    border-radius:8px; padding:9px 16px; display:inline-block; color:var(--ink);
+  }
+
+  /* 深掘り(hosoku)チップ + ポップアウト */
+  .deep-chip{
+    display:inline-flex; align-items:center; gap:8px; margin-top:15px;
+    border:1px solid var(--ok-bd); background:var(--ok-bg); color:var(--ok);
+    border-radius:999px; padding:9px 17px; font-size:13.5px; font-weight:700;
+    font-family:inherit; cursor:pointer; transition:.15s;
+  }
+  .deep-chip:hover{background:#dde5fb; border-color:var(--accent)}
+  .deep-chip svg{width:15px; height:15px; flex:0 0 auto}
+  .deep-chip.primary{background:var(--ok); color:#fff; border-color:var(--ok); margin-top:6px}
+  .deep-chip.primary:hover{background:#244bc0; border-color:#244bc0}
+
+  .overlay{
+    position:fixed; inset:0; background:rgba(16,22,31,.55);
+    display:none; align-items:flex-start; justify-content:center;
+    padding:24px 14px; z-index:1000; overflow-y:auto;
+  }
+  .overlay.open{display:flex}
+  .modal{
+    background:#fff; border-radius:14px; max-width:660px; width:100%; margin:auto;
+    box-shadow:0 18px 60px rgba(16,22,31,.32); overflow:hidden;
+    animation:pop .18s ease-out;
+  }
+  @keyframes pop{from{opacity:0; transform:translateY(8px)} to{opacity:1; transform:none}}
+  .modal > header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:17px 22px; border-bottom:1px solid var(--line);
+  }
+  .modal > header h3{margin:0; font-size:18px; font-weight:700; color:var(--ink); letter-spacing:.01em}
+  .modal .x{
+    border:none; background:none; cursor:pointer; color:var(--muted);
+    font-size:24px; line-height:1; padding:2px 8px; border-radius:8px; transition:.13s;
+  }
+  .modal .x:hover{background:var(--bg); color:var(--ink)}
+  .mbody{padding:20px 22px 24px}
+  .mblock{margin-bottom:22px}
+  .mblock:last-child{margin-bottom:0}
+  .mblock h4{margin:0 0 9px; font-size:14px; font-weight:700; color:var(--orange)}
+  .mblock p{margin:0 0 11px; font-size:14px; font-weight:500; color:#374151; line-height:1.72}
+  .mblock p:last-child{margin-bottom:0}
+  .mblock p b{color:var(--ink)}
+  .mini-box{
+    background:var(--ok-tint); border:1px solid var(--line);
+    border-radius:8px; overflow:hidden; margin:4px 0 6px;
+  }
+  .mini-box canvas{display:block; width:100%; height:auto}
+  .mini-cap{font-size:12.5px; color:var(--muted); margin:2px 0 0; font-weight:500}
+  .mini-cap b{color:var(--warn)}
+
+  /* 方式の切り替え（標本化のスライダーに代わる操作） */
+  .segmented{display:inline-flex; border:1px solid var(--line); border-radius:12px; background:#fff; padding:5px; gap:5px; width:100%}
+  .segmented button{
+    flex:1 1 0; border:none; background:none; border-radius:9px; padding:10px 12px;
+    font-family:inherit; font-size:14px; font-weight:700; color:var(--muted); cursor:pointer;
+    display:flex; flex-direction:column; align-items:center; line-height:1.25; transition:.15s;
+  }
+  .segmented button small{font-weight:500; font-size:11.5px; color:var(--muted); margin-top:3px}
+  .segmented button:hover{color:var(--ok)}
+  .segmented button.active{background:var(--ok); color:#fff}
+  .segmented button.active small{color:rgba(255,255,255,.85)}
+
+  textarea.ta{
+    width:100%; min-height:78px; resize:vertical; margin-top:14px;
+    font-family:var(--mono); font-size:18px; letter-spacing:.10em; line-height:1.5;
+    padding:12px 14px; border:1px solid var(--line); border-radius:8px;
+    color:var(--ink); background:#fff;
+  }
+  textarea.ta:focus{outline:none; border-color:var(--ok); box-shadow:0 0 0 3px var(--ok-bg)}
+  .ta-note{font-size:12px; color:var(--muted); margin:7px 0 0}
+
+  /* 過程パネル（仕組みを見る） */
+  .proc-box{
+    background:var(--ok-tint); border:1px solid var(--line); border-radius:8px;
+    overflow:auto; margin:4px 0 12px;
+  }
+  .proc-box canvas{display:block; width:100%; height:auto}
+  .proc-ctrl{display:flex; flex-wrap:wrap; gap:9px; align-items:center; margin-bottom:12px}
+  .proc-ctrl button{
+    border:1px solid var(--line); background:#fff; border-radius:999px;
+    padding:8px 15px 8px 9px; font-size:13.5px; cursor:pointer; color:var(--ink);
+    font-family:inherit; transition:.15s; display:inline-flex; align-items:center; gap:7px;
+  }
+  .proc-ctrl button .n{
+    display:inline-flex; align-items:center; justify-content:center; width:19px; height:19px;
+    border-radius:50%; background:var(--ok-bg); color:var(--ok);
+    font-size:11.5px; font-weight:700; font-family:var(--mono); flex:0 0 auto;
+  }
+  .proc-ctrl button:hover:not(:disabled){border-color:var(--ok); color:var(--ok)}
+  .proc-ctrl button:disabled{opacity:.45; cursor:not-allowed}
+  .proc-ctrl .ghost{border:none; background:none; color:var(--muted); padding:8px 6px}
+  .proc-ctrl .ghost:hover{color:var(--ok); background:none}
+  .proc-cap{margin:0 0 12px; font-size:13.5px; font-weight:500; color:#374151; line-height:1.62; min-height:1.6em}
+  .proc-cap b{color:var(--ink)}
+  .proc-cap.warn b{color:var(--warn)}
+
+  .ctable{width:100%; border-collapse:collapse; margin:2px 0 4px; font-size:13.5px}
+  .ctable th,.ctable td{text-align:left; padding:8px 12px; border-bottom:1px solid var(--line)}
+  .ctable th{color:var(--muted); font-weight:700; font-size:12px; background:#f7f9fc}
+  .ctable td{font-weight:500; color:#374151; font-family:var(--mono)}
+  .ctable td.code{color:var(--ok); font-weight:700}
+  .ctable .chh{font-family:var(--mono); color:var(--ink); font-weight:700}
+
+  /* ステップ案内 */
+  .steps{display:flex; flex-wrap:wrap; align-items:center; gap:9px}
+  .steps .slabel{font-size:13px; font-weight:700; color:var(--muted); margin-right:3px}
+  .steps button{
+    border:1px solid var(--line); background:#fff; border-radius:999px;
+    padding:7px 14px 7px 8px; font-size:13.5px; cursor:pointer; color:var(--ink);
+    font-family:inherit; transition:.15s; display:inline-flex; align-items:center; gap:7px;
+  }
+  .steps button .n{
+    display:inline-flex; align-items:center; justify-content:center; width:19px; height:19px;
+    border-radius:50%; background:var(--ok-bg); color:var(--ok);
+    font-size:11.5px; font-weight:700; font-family:var(--mono); flex:0 0 auto;
+  }
+  .steps button:hover{border-color:var(--ok); color:var(--ok)}
+  .steps button.active{background:var(--ok); border-color:var(--ok); color:#fff}
+  .steps button.active .n{background:rgba(255,255,255,.26); color:#fff}
+
+  /* 用語辞典 */
+  details.glossary{
+    border:1px solid var(--line); border-radius:10px; background:var(--card);
+    margin-bottom:16px; box-shadow:0 1px 3px rgba(20,30,50,.05);
+  }
+  details.glossary>summary{
+    list-style:none; cursor:pointer; padding:14px 18px; font-size:15px; font-weight:700;
+    color:var(--orange); display:flex; align-items:center; gap:9px; user-select:none;
+  }
+  details.glossary>summary::-webkit-details-marker{display:none}
+  details.glossary>summary::before{
+    content:""; width:0; height:0; border-left:6px solid var(--muted);
+    border-top:5px solid transparent; border-bottom:5px solid transparent;
+    transition:transform .15s; flex:none;
+  }
+  details.glossary[open]>summary::before{transform:rotate(90deg)}
+  dl.gloss{margin:0; padding:2px 18px 18px}
+  dl.gloss dt{font-weight:700; color:var(--ink); font-size:13.5px; margin-top:12px}
+  dl.gloss dt:first-of-type{margin-top:0}
+  dl.gloss dt .en{color:var(--muted); font-family:var(--mono); font-size:11px; font-weight:400; margin-left:7px; letter-spacing:.02em}
+  dl.gloss dd{margin:3px 0 0; font-size:13px; font-weight:500; color:#374151; line-height:1.62}
+
+  .real-table{width:100%; border-collapse:collapse; margin:6px 0 6px; font-size:13px}
+  .real-table th,.real-table td{text-align:left; padding:7px 10px; border-bottom:1px solid var(--line)}
+  .real-table th{color:var(--muted); font-weight:700; font-size:12px; background:#f7f9fc}
+  .real-table td{font-weight:500; color:#374151}
+  .real-table td .big{font-family:var(--mono); font-weight:700; color:var(--ink)}
+
+  footer{font-size:12px; color:var(--muted); text-align:center; margin-top:20px}
+
+  /* セクションの導入リード（節の冒頭） */
+  .lead{font-size:13.5px; font-weight:500; color:#374151; margin:0 0 6px}
+  .lead b{color:var(--ink)}
+  .kicker{font-family:var(--mono); font-size:11px; letter-spacing:.16em; color:var(--muted); text-transform:uppercase; margin:30px 0 10px; display:flex; align-items:center; gap:9px}
+  .kicker::before{content:""; width:18px; height:2px; background:var(--accent); border-radius:2px; flex:none}
+
+  /* スライダー操作（画像・音声で共用） */
+  .ctl-lab{display:flex; justify-content:space-between; align-items:baseline; font-size:14px; font-weight:700; margin:14px 0 7px}
+  .ctl-lab:first-child{margin-top:0}
+  .ctl-lab .val{font-family:var(--mono); color:var(--ok); font-size:14px}
+  input[type=range]{width:100%; height:24px; accent-color:var(--ok); cursor:pointer}
+  .toggles{display:flex; gap:10px 20px; flex-wrap:wrap; margin-top:14px; padding-top:13px; border-top:1px solid var(--line); font-size:13.5px}
+  .toggles label{display:flex; align-items:center; gap:6px; cursor:pointer; color:#374151; font-weight:500}
+  .toggles input{accent-color:var(--ok); width:16px; height:16px}
+
+  /* 画像ステージ（左：表示 右：操作） */
+  .stage{display:grid; grid-template-columns:1.18fr .82fr; gap:22px; align-items:start}
+  canvas.disp{display:block; width:100%; height:auto; border-radius:10px; border:1px solid var(--line); image-rendering:pixelated; background:#eef2f8}
+  .disp-cap{font-size:12px; color:var(--muted); margin:7px 0 0; font-weight:500; text-align:center}
+  .stage-actions{display:flex; gap:10px; flex-wrap:wrap; margin-top:11px}
+  .btn-ghost{display:inline-flex; align-items:center; gap:7px; border:1px solid var(--line); background:#fff; border-radius:8px; padding:8px 14px; font-family:inherit; font-size:13px; font-weight:700; color:var(--ink); cursor:pointer; transition:.13s}
+  .btn-ghost:hover{border-color:var(--ok); color:var(--ok)}
+  .btn-ghost svg{width:15px; height:15px}
+  .loupe-box{margin-top:12px; background:var(--ok-tint); border:1px solid var(--line); border-radius:8px; overflow:hidden}
+  .loupe-box canvas{display:block; width:100%; height:auto}
+
+  /* 聞き比べボタン（音声） */
+  .playbtn{display:inline-flex; align-items:center; gap:8px; border:1px solid var(--ok-bd); background:var(--ok-bg); color:var(--ok); border-radius:999px; padding:9px 17px; font-size:13.5px; font-weight:700; font-family:inherit; cursor:pointer; transition:.15s; margin-top:14px}
+  .playbtn:hover{background:#dde5fb; border-color:var(--accent)}
+  .playbtn svg{width:15px; height:15px; flex:0 0 auto}
+  .playbtn:disabled{opacity:.5; cursor:default}
+
+  /* 拡張子マップ */
+  .fmt-group{margin-bottom:14px}
+  .fmt-group:last-of-type{margin-bottom:0}
+  .fmt-glabel{font-size:13px; font-weight:700; color:var(--muted); margin:0 0 8px}
+  .fmt-row{display:flex; flex-wrap:wrap; gap:9px}
+  .fmt-chip{border:1px solid var(--line); background:#fff; border-radius:999px; padding:8px 15px; font-size:13.5px; cursor:pointer; color:var(--ink); font-family:inherit; font-weight:700; transition:.15s; display:inline-flex; align-items:center; gap:8px}
+  .fmt-chip .dotc{width:8px; height:8px; border-radius:50%; flex:none}
+  .fmt-chip .dotc.lossless{background:var(--ok)}
+  .fmt-chip .dotc.lossy{background:var(--warn)}
+  .fmt-chip .dotc.both{background:linear-gradient(90deg,var(--ok) 0 50%,var(--warn) 50% 100%)}
+  .fmt-chip:hover{border-color:var(--ok); color:var(--ok); background:var(--ok-bg)}
+  .fmt-chip.active{background:var(--ok); border-color:var(--ok); color:#fff}
+  .fmt-chip.active .dotc{box-shadow:0 0 0 2px rgba(255,255,255,.5)}
+  .fmt-legend{display:flex; gap:16px; font-size:12px; color:var(--muted); margin:14px 0 0; flex-wrap:wrap}
+  .fmt-legend span{display:inline-flex; align-items:center; gap:6px}
+  .fmt-legend i{width:9px; height:9px; border-radius:50%; display:inline-block}
+  .fmt-detail{margin-top:14px; border:1px solid var(--line); border-radius:10px; background:#f7f9fc; padding:15px 17px}
+  .fmt-detail .ft{display:flex; align-items:center; gap:11px; flex-wrap:wrap; margin-bottom:9px}
+  .fmt-detail .ft .name{font-size:18px; font-weight:700; color:var(--ink); font-family:var(--mono)}
+  .fmt-badge{font-size:12px; font-weight:700; border-radius:999px; padding:3px 11px}
+  .fmt-badge.lossless{background:var(--ok-bg); color:var(--ok); border:1px solid var(--ok-bd)}
+  .fmt-badge.lossy{background:var(--warn-bg); color:var(--warn); border:1px solid var(--warn-bd)}
+  .fmt-badge.both{background:#f0eefb; color:#5b3fb0; border:1px solid #d9d2f3}
+  .fmt-detail dl{margin:0; display:grid; grid-template-columns:auto 1fr; gap:7px 14px}
+  .fmt-detail dt{font-size:12.5px; font-weight:700; color:var(--muted)}
+  .fmt-detail dd{margin:0; font-size:13.5px; font-weight:500; color:#374151; line-height:1.6}
+
+  @media (max-width:560px){
+    header.top{padding-top:26px}
+    header.top h1{font-size:26px}
+    header.top .sig{display:none}
+    .banner{font-size:14px}
+    .segmented button{font-size:13px}
+    .stage{grid-template-columns:1fr}
+    .fmt-detail dl{grid-template-columns:1fr}
+    .fmt-detail dt{margin-top:6px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="eyebrow"><span class="dot"></span>MIKIKOF-LAB · 情報の符号化</div>
+    <h1>データ圧縮のしくみ</h1>
+    <div class="enlabel">Data Compression</div>
+    <p class="dek">同じ内容を、なぜ短いビット列で表せるのか。完全に元へ戻せる圧縮と、戻せない圧縮は何がちがうのか。文字・写真・音で確かめます。</p>
+    <svg class="sig" viewBox="0 0 148 48" fill="none" aria-hidden="true">
+      <rect class="f" x="6"  y="14" width="9" height="9" rx="1.5"></rect>
+      <rect class="f" x="17" y="14" width="9" height="9" rx="1.5"></rect>
+      <rect class="f" x="28" y="14" width="9" height="9" rx="1.5"></rect>
+      <rect x="39" y="14" width="9" height="9" rx="1.5"></rect>
+      <rect x="50" y="14" width="9" height="9" rx="1.5"></rect>
+      <rect x="61" y="14" width="9" height="9" rx="1.5"></rect>
+      <path d="M78 18.5 H96" stroke-width="2" stroke-linecap="round"></path>
+      <path d="M92 14 L96 18.5 L92 23" stroke-width="2" stroke-linecap="round"></path>
+      <rect class="f" x="106" y="14" width="9" height="9" rx="1.5"></rect>
+      <rect x="117" y="14" width="9" height="9" rx="1.5"></rect>
+    </svg>
+  </header>
+
+  <div class="panel" id="intro">
+    <h2 class="sec">はじめに：圧縮って何をしている？</h2>
+    <p class="note">
+      コンピュータの中では、文字も画像も音も、すべて 0 と 1 の列（<b>ビット</b>）で表されています。同じ内容を<b>もっと短いビット列</b>で表し直すのが<b>データ圧縮</b>です。保存する場所を節約し、送る時間を短くするために使います。
+    </p>
+    <p class="note">
+      圧縮には大きく2つのやり方があります。ひとつは、データの<b>むだ（規則性）</b>だけを削って<b>完全に元へ戻せる</b><b>可逆圧縮</b>。もうひとつは、人が気づきにくい情報まで思いきって捨て、<b>元には戻らない</b>かわりに大きく縮める<b>非可逆圧縮</b>です。文書には可逆を、写真や音楽には非可逆をよく使います。
+    </p>
+    <p class="note">
+      このページでは、まず可逆と非可逆のちがいを見ます。そのあと、文字の可逆圧縮（ランレングス・ハフマン）、写真の非可逆圧縮（JPEG）、音の非可逆圧縮（MP3）の順に、実際に動かして確かめます。最後に、画像・音声の<b>拡張子（ファイル形式）</b>がどちらの仲間かを整理します。
+    </p>
+    <div>
+      <button class="deep-chip primary" id="open-basic" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M4 4.5h6a2 2 0 0 1 2 2V20a2 2 0 0 0-2-2H4z"></path><path d="M20 4.5h-6a2 2 0 0 0-2 2V20a2 2 0 0 1 2-2h6z"></path>
+        </svg>まずはイチから図解で理解する
+      </button>
+    </div>
+  </div>
+
+  <div class="kicker">まずは全体像</div>
+  <div class="panel" id="rt-panel">
+    <h2 class="sec">可逆と非可逆：戻せる圧縮、戻せない圧縮</h2>
+    <p class="lead">圧縮したデータを、また<b>元に戻す（復元する）</b>とどうなるでしょうか。方式を選んで、往復させてみてください。</p>
+    <div class="segmented" role="tablist" aria-label="圧縮の種類">
+      <button id="rt-loss" class="active" role="tab" aria-selected="true" type="button">
+        可逆圧縮<small>むだだけ削る・完全に戻る</small>
+      </button>
+      <button id="rt-lossy" role="tab" aria-selected="false" type="button">
+        非可逆圧縮<small>気づきにくい所も捨てる・戻らない</small>
+      </button>
+    </div>
+    <div id="rt-banner" class="banner ok" style="margin-top:14px"></div>
+    <div id="rt-box" class="canvas-box ok">
+      <canvas id="rt-cv" role="img" aria-label="圧縮の往復を示す図。元データを圧縮して復元し、元と見比べる。可逆なら完全に一致し、非可逆なら復元後がなめらかさを失う。"></canvas>
+    </div>
+    <p class="note">可逆は文書やプログラムのように<b>1文字の狂いも許されない</b>データに使います。非可逆は写真や音楽のように<b>少しの違いなら気づきにくい</b>データに使い、そのぶん大きく縮みます。次の節から、それぞれのしくみを動かして確かめます。</p>
+  </div>
+
+  <div class="kicker">可逆のしくみ｜文字を縮める</div>
+  <div class="panel">
+    <p class="lead">ここからは<b>可逆圧縮</b>です。同じ文字の連続や、出やすい文字のかたよりという<b>むだ</b>を見つけて短くします。2つの方法を切り替えて、どんなときに縮み、どんなときに縮まないのかを確かめてみてください。</p>
+    <h2 class="sec">圧縮する方法をえらぶ</h2>
+    <div class="segmented" role="tablist" aria-label="圧縮方法の切り替え">
+      <button id="m-rle" class="active" role="tab" aria-selected="true" type="button">
+        ランレングス符号化<small>同じ文字の「連続」を短く</small>
+      </button>
+      <button id="m-huff" role="tab" aria-selected="false" type="button">
+        ハフマン符号化<small>出やすい文字ほど「短い符号」</small>
+      </button>
+    </div>
+    <textarea id="text" class="ta" maxlength="48" spellcheck="false" aria-label="圧縮する文字列を入力">AAAAAAAA</textarea>
+    <p class="ta-note">英大文字などの短い文字列で試せます（最大48文字）。下のボタンで例を入れ替えられます。</p>
+    <div class="presets" id="presets"></div>
+  </div>
+
+  <div id="banner" class="banner ok"></div>
+
+  <div id="cbox" class="canvas-box ok">
+    <canvas id="cv" role="img" aria-label="データの大きさを比べる図。上の横棒が元のデータの大きさ、下の横棒が圧縮後の大きさ。マス1つが1単位を表す。圧縮後が短ければ縮んでおり棒は青、圧縮後が同じか長ければ縮んでおらず棒は赤になる。"></canvas>
+  </div>
+
+  <div class="panel">
+    <div class="readouts">
+      <div class="ro"><div class="k" id="k1">元のサイズ</div><div class="v"><span id="v1">—</span></div></div>
+      <div class="ro"><div class="k" id="k2">圧縮後のサイズ</div><div class="v"><span id="v2">—</span></div></div>
+      <div class="ro"><div class="k" id="k3">—</div><div class="v"><span id="v3">—</span></div></div>
+      <div class="ro" id="ro4"><div class="k">圧縮率（小さくなった割合）</div><div class="v"><span id="v4">—</span></div></div>
+    </div>
+  </div>
+
+  <div class="panel" id="proc-panel">
+    <h2 class="sec" id="proc-title">仕組みを見る</h2>
+    <p class="note" id="proc-lead"></p>
+    <div class="proc-ctrl" id="proc-ctrl"></div>
+    <p class="proc-cap" id="proc-cap"></p>
+    <div class="proc-box"><canvas id="cvp" role="img" aria-label="圧縮の過程を示す図。"></canvas></div>
+    <div id="proc-extra"></div>
+  </div>
+
+  <div class="panel">
+    <h2 class="sec">この図が言っていること</h2>
+    <p class="note" id="exp-rle">
+      <b>ランレングス符号化</b>は、同じ文字の<b>連続</b>を「文字＋連続回数」に置き換えます。<code>AAAA</code> を <code>A4</code> と書くように、連続が長いほど短くなります。連続がないと、1文字ごとに回数（＝1）を付けるので、かえって2倍にふくらみます。このデモでは、回数を1マスぶんの固定長として数えています。
+    </p>
+    <p class="note" id="exp-huff" style="display:none">
+      <b>ハフマン符号化</b>は、<b>よく出る文字に短い符号</b>、まれな文字に長い符号を割り当てます。出現頻度の<b>かたより</b>が大きいほど短くなります。かたよりが小さいと縮みにくく、文字が2種類のときや、符号がそろって同じ長さになるときは固定長と変わりません。ここでは ASCII の8ビットではなく、同じ文字を固定長で表す最小ビット（種類数で決まる）と比べています。符号表そのものの大きさは含めません。
+    </p>
+    <p class="note">
+      どちらの方法も、データの中の<b>むだ（規則性）</b>を見つけて短くしている点は同じです。むだがなければ、縮める手がかりもありません。
+    </p>
+    <span class="formula">縮められる量 ≦ もとのデータに含まれる「むだ」の量</span>
+    <div>
+      <button class="deep-chip" id="open-deep" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="11" cy="11" r="7"></circle><line x1="16.2" y1="16.2" x2="21" y2="21"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line>
+        </svg>なぜ縮む？ なぜ縮まない？ — もっと詳しく
+      </button>
+    </div>
+  </div>
+
+  <div class="kicker">非可逆のしくみ｜写真を縮める</div>
+  <div class="panel" id="img-panel">
+    <h2 class="sec">写真の圧縮：JPEG（戻せないかわりに大きく縮む）</h2>
+    <p class="lead">写真は色のついた点（画素）の集まりで、そのままだと大きなデータです。<b>JPEG</b> は、人の目が気づきにくい<b>細かい変化</b>を捨てて縮めます。画質を下げるほど小さくなりますが、捨てた情報は<b>元に戻りません</b>。下の数値は、ブラウザが実際に作ったJPEGの大きさです。</p>
+    <div class="stage">
+      <div>
+        <canvas class="disp" id="img-disp" role="img" aria-label="JPEG圧縮の結果画像。画質スライダーで実際にJPEGへ変換した写真を表示する。画質が低いほどブロック状のノイズが出る。"></canvas>
+        <p class="disp-cap" id="img-disp-cap">画質 80：ほぼ元のまま</p>
+        <div class="stage-actions">
+          <button class="btn-ghost" id="img-upload-btn" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4"/><path d="M7 9l5-5 5 5"/><path d="M4 20h16"/></svg>
+            自分の画像をえらぶ
+          </button>
+          <input type="file" id="img-upload" accept="image/*" hidden>
+          <button class="btn-ghost" id="img-reset" type="button">サンプルに戻す</button>
+        </div>
+      </div>
+      <div>
+        <div class="ctl-lab"><span>JPEGの画質</span><span class="val"><span id="img-q-val">80</span> / 100</span></div>
+        <input type="range" id="img-q" min="3" max="95" step="1" value="80">
+        <div class="presets" id="img-presets">
+          <button data-q="92">高画質</button>
+          <button data-q="60">標準</button>
+          <button data-q="25">低画質</button>
+          <button data-q="8">最低</button>
+        </div>
+        <div class="readouts" style="margin-top:15px">
+          <div class="ro"><div class="k">無圧縮（ビットマップ）</div><div class="v"><span id="img-raw">—</span></div></div>
+          <div class="ro"><div class="k">PNG（可逆・戻せる）</div><div class="v"><span id="img-png">—</span></div></div>
+          <div class="ro" id="img-jpg-ro"><div class="k">JPEG（非可逆・戻せない）</div><div class="v"><span id="img-jpg">—</span></div></div>
+          <div class="ro"><div class="k">JPEGは無圧縮の</div><div class="v"><span id="img-ratio">—</span></div></div>
+        </div>
+        <div class="loupe-box"><canvas id="img-loupe" role="img" aria-label="画像の一部を拡大した図。画質が低いと8×8のブロック状のノイズが見える。"></canvas></div>
+        <p class="disp-cap" style="text-align:left; margin-top:6px">↑ 左の画像をクリックすると、その場所を拡大します。</p>
+      </div>
+    </div>
+    <div id="img-banner" class="banner ok" style="margin-top:16px"></div>
+    <p class="note" style="margin-top:14px">JPEG は画像を <b>8×8 の画素のかたまり</b>に分け、その中の細かい変化を粗く記録します。画質を下げるほど多く捨てるので小さくなり、境界に<b>ブロック状のノイズ</b>が出ます。いっぽう <b>PNG</b> は可逆なので戻せますが、写真ではあまり縮みません。なめらかな写真は JPEG、文字やイラスト・透過は PNG、と<b>用途で使い分けます</b>。なお、ここでの「無圧縮」の大きさは <b>横×縦×3バイト</b>（24 ビットフルカラー・ヘッダを除いた目安）で計算しています。</p>
+  </div>
+
+  <div class="kicker">音のデジタル化とデータ量</div>
+  <div class="panel" id="au-panel">
+    <h2 class="sec">音のデジタル化：標本化と量子化（データ量が決まる）</h2>
+    <p class="lead">音は空気のふるえの波です。コンピュータは波を<b>一定間隔で測り（標本化）</b>、<b>決まった段数の高さに丸めて（量子化）</b>数値で記録します。これは<b>圧縮ではなく、音をデジタルにする段階</b>です。測る回数（標本化周波数）と高さの段数（量子化ビット数）を増やすほど元の波に近づきますが、データは大きくなります。スライダーで動かしてみてください。</p>
+    <div class="canvas-box ok" id="au-box"><canvas id="au-wave" role="img" aria-label="音の波形を標本化・量子化する図。なめらかな元の波、測った標本点、丸めたあとの階段状の波を重ねて表示する。"></canvas></div>
+    <div class="readouts">
+      <div class="ro"><div class="k">標本化周波数</div><div class="v"><span id="au-fs-ro">—</span></div></div>
+      <div class="ro"><div class="k">量子化ビット数</div><div class="v"><span id="au-bits-ro">—</span></div></div>
+      <div class="ro"><div class="k">表せる高さの段数</div><div class="v"><span id="au-levels">—</span></div></div>
+      <div class="ro" id="au-size-ro"><div class="k">データ量（ステレオ・1秒）</div><div class="v"><span id="au-size">—</span></div></div>
+    </div>
+    <div class="panel" style="box-shadow:none; margin:16px 0 0; background:#f7f9fc">
+      <div class="ctl-lab"><span>標本化周波数（1秒に測る回数）</span><span class="val"><span id="au-fs-val">44.1</span> kHz</span></div>
+      <input type="range" id="au-fs" min="4" max="48" step="0.1" value="44.1">
+      <div class="ctl-lab"><span>量子化ビット数（高さの細かさ）</span><span class="val"><span id="au-bits-val">16</span> bit</span></div>
+      <input type="range" id="au-bits" min="2" max="16" step="1" value="16">
+      <div class="presets" id="au-presets">
+        <button data-fs="8" data-bits="8">電話<span class="tag">8kHz / 8bit</span></button>
+        <button data-fs="44.1" data-bits="16">CD<span class="tag">44.1kHz / 16bit</span></button>
+        <button data-fs="6" data-bits="3">かなり粗い<span class="tag">6kHz / 3bit</span></button>
+      </div>
+      <div class="toggles">
+        <label><input type="checkbox" id="au-show-orig" checked> 元のなめらかな波</label>
+        <label><input type="checkbox" id="au-show-samples" checked> 標本点</label>
+      </div>
+      <button class="playbtn" id="au-play" type="button">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"></path></svg>
+        元の音 → 丸めた音 を聞き比べる
+      </button>
+    </div>
+    <div id="au-banner" class="banner ok" style="margin-top:16px"></div>
+    <p class="note" style="margin-top:14px"><b>ここまではまだ圧縮ではありません。</b>標本化・量子化で作った「測って丸めた生データ」が <b>WAV</b>（無圧縮）です。CD と同じ 44.1kHz・16bit・ステレオなら 1 秒で約 176 KB、1 分で約 10 MB になります（このツールでは 1 KB＝1000 B として表示しています）。<b>MP3 や AAC</b> は、この生データから<b>さらに</b>人の耳に聞こえにくい音（大きな音にかき消される小さな音など）を選んで捨てる<b>非可逆圧縮</b>で、約 10 分の 1 まで縮めます。捨てた音は元に戻りません。いっぽう <b>FLAC</b> はむだだけを削る<b>可逆圧縮</b>で、半分ほどに縮みます。</p>
+  </div>
+
+  <div class="kicker">整理する｜拡張子で見分ける</div>
+  <div class="panel" id="fmt-panel">
+    <h2 class="sec">画像・音声の拡張子は、どちらの仲間？</h2>
+    <p class="lead">ファイルの<b>拡張子</b>を見ると、可逆か非可逆か、どんなしくみで縮めているかがおおよそ分かります。チップを選ぶと詳しく出ます。</p>
+    <div class="fmt-group">
+      <p class="fmt-glabel">画像</p>
+      <div class="fmt-row" id="fmt-img"></div>
+    </div>
+    <div class="fmt-group">
+      <p class="fmt-glabel">音声</p>
+      <div class="fmt-row" id="fmt-audio"></div>
+    </div>
+    <div class="fmt-group">
+      <p class="fmt-glabel">そのほか（参考）</p>
+      <div class="fmt-row" id="fmt-other"></div>
+    </div>
+    <div class="fmt-legend">
+      <span><i style="background:var(--ok)"></i>可逆（完全に戻せる）</span>
+      <span><i style="background:var(--warn)"></i>非可逆（戻せない）</span>
+      <span><i style="background:linear-gradient(90deg,var(--ok) 0 50%,var(--warn) 50% 100%)"></i>両方ある</span>
+    </div>
+    <div class="fmt-detail" id="fmt-detail"></div>
+  </div>
+
+  <details class="glossary">
+    <summary>用語のおさらい</summary>
+    <dl class="gloss">
+      <dt>圧縮<span class="en">compression</span></dt>
+      <dd>同じ内容を、より短いビット列で表し直すこと。元に戻せるものを可逆圧縮という。</dd>
+      <dt>ビット<span class="en">bit</span></dt>
+      <dd>0 か 1 の1けた。コンピュータの情報の最小単位。8ビット＝1バイト。</dd>
+      <dt>固定長符号<span class="en">fixed-length code</span></dt>
+      <dd>どの文字も同じビット数で表す方式。k種類の文字なら、ひとつに ⌈log<sub>2</sub>k⌉ ビット必要。</dd>
+      <dt>ランレングス符号化<span class="en">run-length encoding</span></dt>
+      <dd>同じ文字の連続を「文字＋連続回数」にまとめる方式。連続が多い画像（白地のFAXなど）で効く。</dd>
+      <dt>ハフマン符号化<span class="en">Huffman coding</span></dt>
+      <dd>出現頻度の高い文字に短い符号を割り当てる方式。頻度のかたよりを利用する。</dd>
+      <dt>可変長符号<span class="en">variable-length code</span></dt>
+      <dd>文字ごとに符号の長さが変わる方式。ハフマン符号はこの一種。</dd>
+      <dt>エントロピー<span class="en">entropy</span></dt>
+      <dd>データのばらつきの大きさ。1文字あたりに必要なビット数を平均したときの下限で、可逆圧縮の理論的な限界の目安。</dd>
+      <dt>可逆圧縮<span class="en">lossless</span></dt>
+      <dd>規則性（むだ）だけを削り、復元すれば完全に元へ戻せる圧縮。文書・プログラム・ZIP・PNG・FLAC など。</dd>
+      <dt>非可逆圧縮<span class="en">lossy</span></dt>
+      <dd>人が気づきにくい情報まで捨てて大きく縮める圧縮。元には戻らない。JPEG・MP3・AAC など。</dd>
+      <dt>標本化<span class="en">sampling</span></dt>
+      <dd>連続した波（音など）を、一定の間隔で測って数値の並びにすること。1秒あたりの測定回数が標本化周波数。</dd>
+      <dt>量子化<span class="en">quantization</span></dt>
+      <dd>測った値を、決められた段数の高さに丸めること。段数はビット数で決まり、bビットなら 2<sup>b</sup> 段階。</dd>
+      <dt>符号化<span class="en">encoding</span></dt>
+      <dd>標本化・量子化した値を 0 と 1 の列（ビット列）として表すこと。</dd>
+      <dt>PCM・WAV</dt>
+      <dd>PCM は音を標本化・量子化して数値で表す方式。WAV は、その無圧縮データを収める代表的な形式。大きいが劣化がない。</dd>
+      <dt>コーデック<span class="en">codec</span></dt>
+      <dd>データを圧縮（符号化）し、また元に近い形へ戻す（復号する）しくみ。MP3・AAC・H.264 など。</dd>
+      <dt>DEFLATE</dt>
+      <dd>繰り返しのまとめ（LZ77）とハフマン符号化を組み合わせた可逆圧縮。ZIP や PNG が使う。</dd>
+      <dt>DCT（離散コサイン変換）</dt>
+      <dd>画像のかたまりを、ゆるやかな変化と細かい変化に分ける計算。JPEG は細かい変化を粗く記録して縮める。</dd>
+    </dl>
+  </details>
+
+  <footer>mikikof-lab ／ データ圧縮デモ（単一HTML・外部ライブラリ不使用）</footer>
+</div>
+
+<!-- 深掘りポップアウト -->
+<div class="overlay" id="overlay" role="dialog" aria-modal="true" aria-labelledby="deep-title">
+  <div class="modal">
+    <header>
+      <h3 id="deep-title">なぜ縮む？ なぜ縮まない？</h3>
+      <button class="x" id="close-deep" type="button" aria-label="閉じる">×</button>
+    </header>
+    <div class="mbody">
+
+      <div class="mblock">
+        <h4>① むだ＝「予測できる部分」を短く置き換えている</h4>
+        <p>
+          よく出る文字に短い符号を、まれな文字に長い符号を割り当てると、全体は短くなります。下は、いま入力している文字を<b>出現回数の多い順</b>に並べ、ハフマン符号の長さ（ビット数）を添えた図です。よく出る文字ほど短い符号になります。同じ回数の文字どうしは、木の形しだいで長さが変わることもあります。
+        </p>
+        <div class="mini-box"><canvas id="cv2"></canvas></div>
+        <p class="mini-cap" id="cap2"></p>
+      </div>
+
+      <div class="mblock">
+        <h4>② ちゃんと元に戻せる（可逆）：符号が混ざらない仕組み</h4>
+        <p>
+          ハフマン符号は、<b>どの符号も他の符号の先頭になっていません</b>（語頭符号）。だから区切りがなくても、先頭から木をたどるだけで一意に読み分けられます。例として <code>0</code> と <code>10</code> と <code>110</code> をつないだビット列を、左から木でたどって復号します。
+        </p>
+        <div class="mini-box"><canvas id="cv3"></canvas></div>
+        <p class="mini-cap">先頭から1ビットずつ木をたどり、葉に着いたら1文字を確定して根に戻ります。区切り記号は要りません。</p>
+      </div>
+
+      <div class="mblock">
+        <h4>③ むだがないと、縮まない（むしろ増えることもある）</h4>
+        <p>
+          かたよりも連続もないデータには、削れるむだがありません。<code>ABCDEF</code> のように1文字ずつ違う列をランレングスで符号化すると、<b>1文字ごとに回数1が付いて2倍</b>になります。圧縮には、こうした<b>最悪ケース</b>がつきものです。
+        </p>
+        <div class="mini-box"><canvas id="cvw"></canvas></div>
+        <p class="mini-cap"><b>ABCDEF（6マス）→ A1 B1 C1 D1 E1 F1（12マス）。</b>連続がないと、ランレングス符号化ではかえってデータが増えます。</p>
+        <p class="mini-cap" id="capw" style="margin-top:8px"></p>
+      </div>
+
+      <div class="mblock">
+        <h4>④ ほんとうの限界：エントロピーより短くはできない</h4>
+        <p>
+          むだを削りきっても、それ以上は縮められない下限があります。1文字あたりに必要なビット数を平均したときの下限を<b>エントロピー</b> H といいます。どの文字も同じくらい出る（かたよりがない）ほど H は大きく、もう縮められません。ハフマン符号化も、平均すればこの下限より短くはできません。
+        </p>
+        <span class="formula">H ＝ −Σ p<sub>i</sub> log<sub>2</sub> p<sub>i</sub> &nbsp;（ビット/文字）</span>
+      </div>
+
+      <div class="mblock">
+        <h4>身のまわりの圧縮</h4>
+        <p>写真や書類、音楽など、保存や送信のときには圧縮がよく使われています。</p>
+        <table class="real-table">
+          <thead><tr><th>形式</th><th>主なしくみ</th><th>元に戻せるか</th></tr></thead>
+          <tbody>
+            <tr><td>FAX・BMP(RLE形式) など</td><td>ランレングス符号化</td><td><span class="big">可逆</span></td></tr>
+            <tr><td>ZIP・PNG（書類・画像）</td><td>繰り返し＋頻度の符号化（DEFLATE）</td><td><span class="big">可逆</span></td></tr>
+            <tr><td>JPEG（写真）</td><td>見えにくい成分を捨てる＋符号化</td><td>非可逆</td></tr>
+          </tbody>
+        </table>
+        <p class="mini-cap">ここで扱った2つ（連続をまとめる・頻度で符号を変える）は、元に戻せる<b>可逆圧縮</b>の基本です。写真の JPEG は一部を捨てる非可逆圧縮で、戻すと少しぼやけます。</p>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- 基礎からゆっくり ポップアウト -->
+<div class="overlay" id="overlay-basic" role="dialog" aria-modal="true" aria-labelledby="basic-title">
+  <div class="modal">
+    <header>
+      <h3 id="basic-title">イチから図解：データを短くするとは</h3>
+      <button class="x" id="close-basic" type="button" aria-label="閉じる">×</button>
+    </header>
+    <div class="mbody">
+
+      <div class="mblock">
+        <h4>① データは 0 と 1 の列（ビット）</h4>
+        <p>
+          文字はそれぞれ番号で決められていて、その番号を 0 と 1 で書きます。たとえば <code>A</code> は 8 ビットで <b>01000001</b>。マス1つが1ビットです。
+        </p>
+        <div class="mini-box"><canvas id="cvb1"></canvas></div>
+      </div>
+
+      <div class="mblock">
+        <h4>② 固定長：どの文字も同じ長さ</h4>
+        <p>
+          使う文字が4種類だけなら、4通りを 2 ビットで区別できます（<b>00 01 10 11</b>）。これが固定長です。種類が少ないほど、1文字あたりのビット数は減らせます。
+        </p>
+        <div class="mini-box"><canvas id="cvb2"></canvas></div>
+        <p class="mini-cap">A=00, B=01, C=10, D=11。どの文字もきっちり2ビットずつです。</p>
+      </div>
+
+      <div class="mblock">
+        <h4>③ データには「むだ」がある</h4>
+        <p>
+          同じ文字が<b>続きます</b>。あるいは、特定の文字ばかり<b>たくさん出ます</b>。こうした<b>かたより</b>が、圧縮の手がかりになります。
+        </p>
+        <div class="mini-box"><canvas id="cvb3"></canvas></div>
+        <p class="mini-cap">同じ文字の連続（青い帯）と、出やすい文字（高い棒）。どちらも「予想がつく＝むだ」です。</p>
+      </div>
+
+      <div class="mblock">
+        <h4>④ むだを削ると、短くなる</h4>
+        <p>
+          連続は「文字＋回数」に、出やすい文字は「短い符号」に置き換えます。同じ内容のまま、ビット数だけが減ります。
+        </p>
+        <div class="mini-box"><canvas id="cvb4"></canvas></div>
+        <p class="mini-cap">左がもとの長さ、右がむだを削ったあとです。中身は同じで、短くなっています。</p>
+      </div>
+
+      <div class="mblock">
+        <p>
+          上のデモは、この「むだの削り方」を2通り（連続をまとめる／頻度で符号を変える）試しています。むだが多いほどよく縮み、むだがないと縮みません。
+        </p>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  const cv  = document.getElementById('cv');
+  const ctx = cv.getContext('2d');
+  const cvp = document.getElementById('cvp');
+  const ctxp = cvp.getContext('2d');
+
+  const el = {
+    text:document.getElementById('text'),
+    mRle:document.getElementById('m-rle'), mHuff:document.getElementById('m-huff'),
+    presets:document.getElementById('presets'),
+    banner:document.getElementById('banner'), cbox:document.getElementById('cbox'),
+    k1:document.getElementById('k1'), k3:document.getElementById('k3'),
+    v1:document.getElementById('v1'), v2:document.getElementById('v2'),
+    v3:document.getElementById('v3'), v4:document.getElementById('v4'),
+    ro4:document.getElementById('ro4'),
+    procTitle:document.getElementById('proc-title'), procLead:document.getElementById('proc-lead'),
+    procCtrl:document.getElementById('proc-ctrl'), procCap:document.getElementById('proc-cap'),
+    procExtra:document.getElementById('proc-extra'),
+    expRle:document.getElementById('exp-rle'), expHuff:document.getElementById('exp-huff')
+  };
+
+  const cssVar = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+  let mode = 'rle';        // 'rle' | 'huffman'
+  let huffStep = 0;        // 表示している合体の回数（0=葉のまま, max=完成）
+  let scanIdx = -1;        // ランレングスのスキャン位置（-1=全表示）
+  let scanTimer = null;
+
+  // ===== 数理（独立に検算済み）=====
+  // ランレングス：1つの連 → 2マス（文字1 + 回数1）。元のサイズ＝文字数。
+  function rleRuns(s){
+    const runs = [];
+    for(const c of s){
+      const last = runs[runs.length - 1];
+      if(last && last.ch === c) last.n++;
+      else runs.push({ ch:c, n:1 });
+    }
+    return runs;
+  }
+  // ハフマン：固定長の基準は ⌈log2 k⌉ ビット/文字（k＝文字の種類数）。
+  const distinctCount = s => new Set(Array.from(s)).size;
+  const fixedBitsPerChar = k => Math.max(1, Math.ceil(Math.log2(Math.max(k, 1))));
+
+  function freqList(s){
+    const m = new Map();
+    for(const c of s) m.set(c, (m.get(c) || 0) + 1);
+    return [...m.entries()].map(([ch, f]) => ({ ch, f }))
+      .sort((a, b) => (b.f - a.f) || (a.ch < b.ch ? -1 : 1));   // 多い順（同数は文字順）
+  }
+
+  // ハフマン木を組み立て、合体の手順（merges）も残す
+  function buildHuffman(freqs){
+    let leaves = freqs.map(o => ({ ch:o.ch, f:o.f, leaf:true, l:null, r:null }));
+    if(leaves.length === 0) return { root:null, merges:[], leaves:[] };
+    if(leaves.length === 1) return { root:leaves[0], merges:[], leaves, single:true };
+    const merges = [];
+    let pq = leaves.slice();
+    while(pq.length > 1){
+      pq.sort((a, b) => (a.f - b.f) || (a.ch < b.ch ? -1 : a.ch > b.ch ? 1 : 0));
+      const x = pq.shift(), y = pq.shift();
+      const m = { ch:'·', f:x.f + y.f, leaf:false, l:x, r:y };
+      merges.push({ a:x, b:y, m });
+      pq.push(m);
+    }
+    return { root:pq[0], merges, leaves };
+  }
+  // 符号語の割り当て（左＝0・右＝1）。葉ごとの符号と長さを返す
+  function codesOf(root, single){
+    const codes = new Map();
+    if(!root) return codes;
+    if(single){ codes.set(root.ch, '0'); return codes; }
+    (function walk(n, code){
+      if(n.leaf){ codes.set(n.ch, code || '0'); return; }
+      walk(n.l, code + '0'); walk(n.r, code + '1');
+    })(root, '');
+    return codes;
+  }
+  // merges を step 回だけ適用した「森（複数の木）」を返す。
+  // buildHuffman が作った同一オブジェクト（leaves / merges.m）を参照一致で取り回す。
+  function forestAt(leaves, merges, step){
+    const live = leaves.slice();
+    for(let i = 0; i < step && i < merges.length; i++){
+      const mg = merges[i];
+      const ia = live.indexOf(mg.a); if(ia >= 0) live.splice(ia, 1);
+      const ib = live.indexOf(mg.b); if(ib >= 0) live.splice(ib, 1);
+      live.push(mg.m);
+    }
+    return live.sort((p, q) => (p.f - q.f) || ((leftmostCh(p) < leftmostCh(q)) ? -1 : 1));
+  }
+  function leftmostCh(n){ while(!n.leaf) n = n.l; return n.ch; }
+
+  // ===== 状態の計算 =====
+  function compute(){
+    const s = el.text.value;
+    if(mode === 'rle'){
+      const runs = rleRuns(s);
+      const orig = Array.from(s).length;   // コードポイント数（絵文字なども1文字と数える）
+      const comp = runs.length * 2;
+      return { unit:'マス', orig, comp, runs, ratio:(orig ? (orig - comp) / orig : 0), ok:(comp < orig) };
+    } else {
+      const k = distinctCount(s);
+      const b = fixedBitsPerChar(k);
+      const freqs = freqList(s);
+      const huff = buildHuffman(freqs);
+      const codes = codesOf(huff.root, huff.single);
+      let comp = 0;
+      for(const { ch, f } of freqs) comp += f * (codes.get(ch) || '0').length;
+      const orig = Array.from(s).length * b;
+      return { unit:'ビット', orig, comp, k, b, freqs, huff, codes, ratio:(orig ? (orig - comp) / orig : 0), ok:(comp < orig) };
+    }
+  }
+
+  // ===== 主図：サイズ比較バー =====
+  function setupCanvas(canvas, context, cssH){
+    const dpr = window.devicePixelRatio || 1;
+    const cssW = canvas.clientWidth || 600;
+    canvas.style.height = cssH + 'px';
+    canvas.width  = Math.round(cssW * dpr);
+    canvas.height = Math.round(cssH * dpr);
+    context.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { w:cssW, h:cssH };
+  }
+  function roundRect(c, x, y, w, h, r){
+    r = Math.min(r, w / 2, h / 2);
+    c.beginPath();
+    c.moveTo(x + r, y);
+    c.arcTo(x + w, y, x + w, y + h, r);
+    c.arcTo(x + w, y + h, x, y + h, r);
+    c.arcTo(x, y + h, x, y, r);
+    c.arcTo(x, y, x + w, y, r);
+    c.closePath();
+  }
+  // n マス分の帯を、与えた幅いっぱいに（マスが多すぎなければ格子も）描く
+  function drawBar(c, x, y, fullW, h, units, maxUnits, col, tint){
+    const w = Math.max(6, fullW * (units / maxUnits));
+    roundRect(c, x, y, w, h, 6); c.fillStyle = tint; c.fill();
+    roundRect(c, x, y, w, h, 6); c.strokeStyle = col; c.lineWidth = 1.6; c.stroke();
+    if(units > 0 && units <= 40){
+      const cw = w / units;
+      c.strokeStyle = col; c.globalAlpha = 0.32; c.lineWidth = 1;
+      for(let i = 1; i < units; i++){ const gx = x + i * cw; c.beginPath(); c.moveTo(gx, y + 2); c.lineTo(gx, y + h - 2); c.stroke(); }
+      c.globalAlpha = 1;
+    }
+    return w;
+  }
+  function drawMain(){
+    const r = compute();
+    const dim = setupCanvas(cv, ctx, 240);
+    const W = dim.w, H = dim.h;
+    if(el.text.value.length === 0){ ctx.clearRect(0, 0, W, H); return; }   // 空入力では赤い空棒を描かない（resize 経由の呼び出しも塞ぐ）
+    ctx.clearRect(0, 0, W, H);
+    const padL = 92, labelW = 98;          // 右に棒のサイズ表示ぶんを確保する
+    const barW = W - padL - labelW;
+    const maxUnits = Math.max(r.orig, r.comp, 1);
+    const okCol = cssVar('--ok'), okTint = '#dfe7fb';
+    const warnCol = cssVar('--warn'), warnTint = '#f7d8d5';
+    const barH = 46;
+    const y1 = 40, y2 = 138;
+
+    // ラベル（棒の左・図形と重ねない）
+    ctx.fillStyle = '#5b6470'; ctx.font = 'bold 12.5px sans-serif'; ctx.textAlign = 'left';
+    ctx.fillText('元のデータ', 6, y1 + 6);
+    ctx.fillText('圧縮後', 6, y2 + 6);
+
+    // 元（基準色：濃いグレー）
+    const wOrig = drawBar(ctx, padL, y1 - barH / 2, barW, barH, r.orig, maxUnits, '#8b94a3', '#eef1f6');
+    ctx.fillStyle = '#3a414c'; ctx.font = 'bold 14px sans-serif'; ctx.textAlign = 'left';
+    ctx.fillText(r.orig + ' ' + r.unit, padL + wOrig + 8, y1 + 5);
+
+    // 圧縮後（ok→青 / warn→赤）
+    const col = r.ok ? okCol : warnCol, tint = r.ok ? okTint : warnTint;
+    const wComp = drawBar(ctx, padL, y2 - barH / 2, barW, barH, r.comp, maxUnits, col, tint);
+    ctx.fillStyle = col; ctx.font = 'bold 14px sans-serif'; ctx.textAlign = 'left';
+    ctx.fillText(r.comp + ' ' + r.unit, padL + wComp + 8, y2 + 5);
+
+    // 差分の目安線（元の右端から圧縮後の右端まで）
+    const xo = padL + wOrig, xc = padL + wComp;
+    ctx.strokeStyle = col; ctx.setLineDash([4, 3]); ctx.lineWidth = 1.2; ctx.globalAlpha = 0.7;
+    ctx.beginPath(); ctx.moveTo(xo, y1 + barH / 2 + 4); ctx.lineTo(xo, y2 - barH / 2 - 4); ctx.stroke();
+    ctx.setLineDash([]); ctx.globalAlpha = 1;
+
+    ctx.fillStyle = col; ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center';
+    const midY = (y1 + y2) / 2;
+    if(r.ok){
+      const xMid = (xc + xo) / 2;
+      if(xo - xc > 50){ ctx.fillText('← ' + (r.orig - r.comp) + ' ' + r.unit + ' 削減', xMid, midY + 4); }
+      else { ctx.textAlign = 'left'; ctx.fillText('削減 ' + (r.orig - r.comp) + ' ' + r.unit, xo + 8, midY + 4); }
+    } else if(r.comp > r.orig){
+      ctx.textAlign = 'left'; ctx.fillText('+' + (r.comp - r.orig) + ' ' + r.unit + ' 増加', xo + 8, midY + 4);
+    } else {
+      ctx.textAlign = 'left'; ctx.fillText('同じ大きさ', xo + 8, midY + 4);
+    }
+  }
+
+  // ===== バナー・数値 =====
+  function update(){
+    const r = compute();
+    const empty = el.text.value.length === 0;
+
+    // 読み取りカード
+    el.v1.textContent = empty ? '—' : (r.orig + ' ' + r.unit);
+    el.v2.textContent = empty ? '—' : (r.comp + ' ' + r.unit);
+    if(mode === 'rle'){
+      el.k1.textContent = '元のサイズ（文字数）';
+      el.k3.textContent = 'まとまり（連の数）';
+      el.v3.textContent = empty ? '—' : (r.runs.length + ' 個');
+    } else {
+      el.k1.textContent = '元のサイズ（固定長 ' + (empty ? '—' : r.b) + 'ビット/文字）';
+      el.k3.textContent = '文字の種類 k';
+      el.v3.textContent = empty ? '—' : (r.k + ' 種類');
+    }
+    el.v4.textContent = empty ? '—' : (r.ok ? (r.ratio * 100).toFixed(1) + '% 小さく' : (r.comp > r.orig ? '−' + Math.abs(r.ratio * 100).toFixed(1) + '%（増加）' : '0%（同じ）'));
+
+    // バナー・配色
+    if(empty){
+      el.ro4.classList.remove('alias');
+      el.cbox.className = 'canvas-box ok';
+      el.banner.className = 'banner ok';
+      el.banner.innerHTML = '文字列を入力すると、圧縮の結果がここに出ます。';
+    } else if(r.ok){
+      el.ro4.classList.remove('alias');
+      el.cbox.className = 'canvas-box ok';
+      el.banner.className = 'banner ok';
+      const span = '（' + r.orig + ' → ' + r.comp + ' ' + r.unit + '）。';
+      const uniform = mode === 'huffman' && r.freqs.length && r.freqs.every(o => o.f === r.freqs[0].f);
+      const why = mode === 'rle'
+        ? '同じ文字の連続をまとめられました' + span
+        : (uniform
+            ? '文字の種類数のぶん、固定長より少しだけ詰められました' + span
+            : '出現頻度のかたよりを活かせました' + span);
+      el.banner.innerHTML = '✓ 縮みました — ' + (r.ratio * 100).toFixed(1) + '% 小さくなりました<small>' + why + '</small>';
+    } else {
+      el.ro4.classList.add('alias');
+      el.cbox.className = 'canvas-box warn';
+      el.banner.className = 'banner warn';
+      let why;
+      if(mode === 'rle'){
+        why = r.comp > r.orig
+          ? '⚠ かえって増えました — 連続がほとんどありません'
+          : '⚠ 縮みませんでした — 連続が短く、まとめる効果が出ません';
+        el.banner.innerHTML = why + '<small>1文字ごとに回数が付くため、元の ' + r.orig + ' ' + r.unit + ' が圧縮後 ' + r.comp + ' ' + r.unit + ' になりました。</small>';
+      } else if(r.k <= 1){
+        el.banner.innerHTML = '⚠ 縮みませんでした — 1種類の文字だけです<small>本来は区別する情報が要りません（このデモでは1ビットとして表示。固定長と同じ ' + r.orig + ' ' + r.unit + '）。</small>';
+      } else if(r.k === 2){
+        el.banner.innerHTML = '⚠ 縮みませんでした — 文字が2種類だけです<small>2種類なら1文字1ビットで足り、ハフマン符号でもこれ以上は短くできません（固定長と同じ ' + r.orig + ' ' + r.unit + '）。</small>';
+      } else {
+        // 実際の符号長で理由を分ける（木の作り方＝tie-break に依存しない）
+        const uniform = r.freqs.length && r.freqs.every(o => o.f === r.freqs[0].f);
+        const lens = [...r.codes.values()].map(c => c.length);
+        const sameLen = lens.length && lens.every(n => n === lens[0]);
+        if(uniform){
+          el.banner.innerHTML = '⚠ 縮みませんでした — 頻度のかたよりがありません<small>どの文字も同じくらい出るので、固定長（' + r.orig + ' ' + r.unit + '）と同じ長さです。</small>';
+        } else if(sameLen){
+          el.banner.innerHTML = '⚠ 縮みませんでした — 各文字の符号が同じ長さになりました<small>かたよりはありますが、符号がそろって ' + lens[0] + ' ビットになり、固定長（' + r.orig + ' ' + r.unit + '）と変わりません。</small>';
+        } else {
+          el.banner.innerHTML = '⚠ 縮みませんでした — 短い符号と長い符号で差し引きゼロ<small>かたよりはありますが、短い符号と長い符号が打ち消し合い、合計は固定長（' + r.orig + ' ' + r.unit + '）と同じです。</small>';
+        }
+      }
+    }
+    drawMain();
+    renderProcess();
+  }
+
+  // ===== 過程パネル =====
+  function renderProcess(){
+    if(mode === 'rle') renderRle();
+    else renderHuffman();
+  }
+
+  // ---- ランレングスの過程 ----
+  function renderRle(){
+    el.procTitle.textContent = '仕組みを見る：連続をまとめる';
+    el.procLead.innerHTML = '先頭から1文字ずつ見て、<b>連続が途切れたら</b>「文字＋連続回数」を書き出します。';
+    el.expRle.style.display = ''; el.expHuff.style.display = 'none';
+    el.procExtra.innerHTML = '';
+    el.procCtrl.innerHTML = '';
+    const playBtn = document.createElement('button');
+    playBtn.innerHTML = '<span class="n">▶</span>スキャンを再生';
+    const resetBtn = document.createElement('button'); resetBtn.className = 'ghost'; resetBtn.textContent = '全体を表示';
+    el.procCtrl.appendChild(playBtn); el.procCtrl.appendChild(resetBtn);
+    playBtn.addEventListener('click', playRle);
+    resetBtn.addEventListener('click', () => { stopScan(); scanIdx = -1; drawRle(); setRleCap(-1); });
+    setRleCap(scanIdx);
+    drawRle();
+  }
+  function setRleCap(idx){
+    const s = el.text.value;
+    if(s.length === 0){ el.procCap.classList.remove('warn'); el.procCap.innerHTML = '文字列を入力すると過程を表示します。'; return; }
+    el.procCap.classList.remove('warn');
+    if(idx < 0){ el.procCap.innerHTML = '上：もとの文字。下：まとめたあとの「文字＋回数」。<b>再生</b>で1文字ずつスキャンします。'; return; }
+    el.procCap.innerHTML = '左から走査中。同じ文字が続く間はまとめ、途切れた所で「文字＋回数」を確定します。';
+  }
+  function playRle(){
+    stopScan();
+    const s = el.text.value; if(!s.length) return;
+    const n = Array.from(s).length;
+    scanIdx = 0; setRleCap(0); drawRle();
+    scanTimer = setInterval(() => {
+      scanIdx++;
+      if(scanIdx >= n){ stopScan(); scanIdx = -1; setTimeout(() => { drawRle(); setRleCap(-1); }, 450); return; }
+      drawRle();
+    }, 420);
+  }
+  function stopScan(){ if(scanTimer){ clearInterval(scanTimer); scanTimer = null; } }
+
+  function drawCellRow(c, label, items, ox, oy, w, colorFn){
+    c.fillStyle = '#5b6470'; c.font = 'bold 12px sans-serif'; c.textAlign = 'left';
+    c.fillText(label, ox, oy - 8);
+    const n = items.length, gap = 6;
+    const cell = Math.max(20, Math.min(40, (w - (n - 1) * gap) / Math.max(n, 1)));
+    let x = ox;
+    items.forEach((it, i) => {
+      const col = colorFn(it, i);
+      roundRect(c, x, oy, cell, cell, 6); c.fillStyle = col.bg; c.fill();
+      roundRect(c, x, oy, cell, cell, 6); c.strokeStyle = col.bd; c.lineWidth = 1.5; c.stroke();
+      c.fillStyle = col.fg; c.font = 'bold 17px ' + 'var(--mono)'.replace('var(--mono)', 'ui-monospace, monospace'); c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.fillText(it.label, x + cell / 2, oy + cell / 2 + 1);
+      c.textBaseline = 'alphabetic';
+      x += cell + gap;
+    });
+    return { bottom:oy + cell, cell };
+  }
+  function drawRle(){
+    const s = el.text.value;
+    const runs = rleRuns(s);
+    const dim = setupCanvas(cvp, ctxp, Math.max(150, 96 + (s.length ? 0 : 0)));
+    const W = dim.w;
+    ctxp.clearRect(0, 0, W, dim.h);
+    if(!s.length) return;
+    const okBg = cssVar('--ok-bg'), okBd = cssVar('--ok-bd'), okFg = cssVar('--ok');
+    const scanBg = '#fff', scanBd = cssVar('--orange'), scanFg = cssVar('--orange');
+
+    // 上段：もとの文字
+    const chars = Array.from(s).map((ch, i) => ({ label:ch, i }));
+    drawCellRow(ctxp, '入力（' + chars.length + '文字）', chars, 16, 38, W - 32, (it) => {
+      const scanning = (scanIdx >= 0 && it.i === scanIdx);
+      const done = (scanIdx >= 0 && it.i < scanIdx);
+      if(scanning) return { bg:scanBg, bd:scanBd, fg:scanFg };
+      if(done) return { bg:okBg, bd:okBd, fg:okFg };
+      return { bg:'#fff', bd:cssVar('--line'), fg:cssVar('--ink') };
+    });
+
+    // 下段：まとめた結果（スキャン位置までの確定分だけ表示）
+    let shown = runs;
+    if(scanIdx >= 0){
+      let acc = 0, k = 0;
+      for(const r of runs){ if(acc + r.n <= scanIdx) { acc += r.n; k++; } else break; }
+      shown = runs.slice(0, k);
+    }
+    const pairs = shown.map(r => ({ label:r.ch + r.n }));
+    if(pairs.length){
+      drawCellRow(ctxp, '圧縮後（' + (scanIdx >= 0 ? '確定分' : runs.length + ' 個') + '）', pairs, 16, 112, W - 32,
+        () => ({ bg:okBg, bd:okBd, fg:okFg }));
+    } else {
+      ctxp.fillStyle = '#5b6470'; ctxp.font = 'bold 12px sans-serif'; ctxp.textAlign = 'left';
+      ctxp.fillText('圧縮後', 16, 104);
+    }
+  }
+
+  // ---- ハフマンの過程 ----
+  function renderHuffman(){
+    el.procTitle.textContent = '仕組みを見る：頻度で木を組み立てる';
+    el.procLead.innerHTML = '頻度の<b>小さい2つ</b>を選んで合体させ、1つになるまでくり返します。根から左を 0・右を 1 として符号を読みます。';
+    el.expRle.style.display = 'none'; el.expHuff.style.display = '';
+    const r = compute();
+    const merges = r.huff ? r.huff.merges : [];
+    huffStep = Math.min(huffStep, merges.length);
+
+    el.procCtrl.innerHTML = '';
+    const nextBtn = document.createElement('button');
+    const restartBtn = document.createElement('button'); restartBtn.className = 'ghost'; restartBtn.textContent = '最初から';
+    const fullBtn = document.createElement('button'); fullBtn.className = 'ghost'; fullBtn.textContent = '完成形を見る';
+    nextBtn.innerHTML = '<span class="n">＋</span>小さい2つを合体';
+    el.procCtrl.appendChild(nextBtn); el.procCtrl.appendChild(fullBtn); el.procCtrl.appendChild(restartBtn);
+    nextBtn.disabled = (huffStep >= merges.length);
+    nextBtn.addEventListener('click', () => { if(huffStep < merges.length){ huffStep++; drawHuffman(); afterHuffStep(); } });
+    restartBtn.addEventListener('click', () => { huffStep = 0; drawHuffman(); afterHuffStep(); });
+    fullBtn.addEventListener('click', () => { huffStep = merges.length; drawHuffman(); afterHuffStep(); });
+
+    afterHuffStep();
+    drawHuffman();
+  }
+  function afterHuffStep(){
+    const r = compute();
+    const merges = r.huff ? r.huff.merges : [];
+    const done = (huffStep >= merges.length);
+    const btn = el.procCtrl.querySelector('button:not(.ghost)');
+    if(btn) btn.disabled = done;
+    el.procCap.classList.remove('warn');
+    if(el.text.value.length === 0){ el.procCap.innerHTML = '文字列を入力すると過程を表示します。'; el.procExtra.innerHTML = ''; return; }
+    if(!done){
+      el.procCap.innerHTML = '合体 <b>' + huffStep + ' / ' + merges.length + '</b> 回。いちばん小さい2つが合体し、頻度の和が親になります。';
+      el.procExtra.innerHTML = '';
+    } else {
+      el.procCap.innerHTML = '木が完成しました。根から左＝0・右＝1 でたどると、各文字の符号が決まります。';
+      renderCodeTable(r);
+    }
+  }
+  function renderCodeTable(r){
+    if(!r.freqs || !r.freqs.length){ el.procExtra.innerHTML = ''; return; }
+    const rows = r.freqs.map(o => {
+      const code = r.codes.get(o.ch) || '0';
+      return '<tr><td class="chh">' + (o.ch === ' ' ? '␣' : escapeHtml(o.ch)) + '</td><td>' + o.f + '</td><td class="code">' + code + '</td><td>' + code.length + ' ビット × ' + o.f + ' ＝ ' + (code.length * o.f) + '</td></tr>';
+    }).join('');
+    el.procExtra.innerHTML =
+      '<table class="ctable"><thead><tr><th>文字</th><th>頻度</th><th>ハフマン符号</th><th>使うビット</th></tr></thead><tbody>' +
+      rows + '</tbody></table>' +
+      '<p class="mini-cap" style="padding:0 2px">合計 ' + r.comp + ' ビット。固定長なら ' + r.orig + ' ビット（' + r.b + ' ビット × ' + Array.from(el.text.value).length + ' 文字）。' +
+      '符号の割り当ては木の作り方で複数あり得ますが、合計ビット数は変わりません。</p>';
+  }
+
+  // ハフマン木（森）を canvas に描く
+  function measureForestDepth(forest){ let d = 0; forest.forEach(t => d = Math.max(d, depthOf(t))); return d; }
+  function depthOf(n){ return n.leaf ? 0 : 1 + Math.max(depthOf(n.l), depthOf(n.r)); }
+  function countLeaves(n){ return n.leaf ? 1 : countLeaves(n.l) + countLeaves(n.r); }
+
+  function drawHuffman(){
+    const r = compute();
+    const freqs = r.freqs || [];
+    const merges = r.huff ? r.huff.merges : [];
+    const forest = (r.huff && r.huff.single)
+      ? [r.huff.root]
+      : forestAt(r.huff.leaves, merges, huffStep);
+    const depth = Math.max(measureForestDepth(forest), 0);
+    const levelH = 62, topPad = 30, boxH = 32;
+    const cssH = Math.max(150, topPad + depth * levelH + boxH + 22);
+    const dim = setupCanvas(cvp, ctxp, cssH);
+    const W = dim.w;
+    ctxp.clearRect(0, 0, W, dim.h);
+    if(!freqs.length) return;
+
+    const totalLeaves = forest.reduce((a, t) => a + countLeaves(t), 0);
+    const padX = 18, slotGap = 18;
+    const usableW = W - padX * 2 - slotGap * (forest.length - 1);
+    let cursor = padX;
+    forest.forEach(tree => {
+      const lv = countLeaves(tree);
+      const slotW = usableW * (lv / totalLeaves);
+      layoutAndDraw(tree, cursor, cursor + slotW, topPad, levelH, boxH);
+      cursor += slotW + slotGap;
+    });
+  }
+  function layoutAndDraw(root, x0, x1, topPad, levelH, boxH){
+    // 葉に等間隔の x を、内部ノードに子の中点を割り当てる
+    const leaves = []; (function collect(n){ if(n.leaf) leaves.push(n); else { collect(n.l); collect(n.r); } })(root);
+    const mgn = 26, lx0 = x0 + mgn, lx1 = x1 - mgn;   // 葉のボックスが枠からはみ出さないよう内側に寄せる
+    let i = 0;
+    (function place(n, depth){
+      n._y = topPad + depth * levelH;
+      if(n.leaf){ n._x = leaves.length === 1 ? (x0 + x1) / 2 : lx0 + (i / (leaves.length - 1)) * (lx1 - lx0); i++; return; }
+      place(n.l, depth + 1); place(n.r, depth + 1);
+      n._x = (n.l._x + n.r._x) / 2;
+    })(root, 0);
+
+    const c = ctxp;
+    // 先に枝を描く（ノードの下に）
+    (function edges(n){
+      if(n.leaf) return;
+      [['0', n.l], ['1', n.r]].forEach(([lab, ch]) => {
+        c.strokeStyle = '#b7c0cf'; c.lineWidth = 1.6; c.setLineDash([]);
+        c.beginPath(); c.moveTo(n._x, n._y + boxH / 2); c.lineTo(ch._x, ch._y - boxH / 2); c.stroke();
+        const mx = (n._x + ch._x) / 2, my = (n._y + boxH / 2 + ch._y - boxH / 2) / 2;
+        c.fillStyle = '#fff'; c.beginPath(); c.arc(mx, my, 8.5, 0, 7); c.fill();
+        c.fillStyle = lab === '0' ? cssVar('--ok') : cssVar('--orange');
+        c.font = 'bold 12px ui-monospace, monospace'; c.textAlign = 'center'; c.textBaseline = 'middle';
+        c.fillText(lab, mx, my + 1); c.textBaseline = 'alphabetic';
+        edges(ch);
+      });
+    })(root);
+    // ノードを描く
+    (function nodes(n){
+      const bw = n.leaf ? 44 : 38;
+      roundRect(c, n._x - bw / 2, n._y - boxH / 2, bw, boxH, 7);
+      c.fillStyle = n.leaf ? cssVar('--ok-bg') : '#fff'; c.fill();
+      roundRect(c, n._x - bw / 2, n._y - boxH / 2, bw, boxH, 7);
+      c.strokeStyle = n.leaf ? cssVar('--ok-bd') : '#cdd6e3'; c.lineWidth = 1.6; c.stroke();
+      c.textAlign = 'center'; c.textBaseline = 'middle';
+      if(n.leaf){
+        c.fillStyle = cssVar('--ink'); c.font = 'bold 14px ui-monospace, monospace';
+        c.fillText(n.ch === ' ' ? '␣' : n.ch, n._x, n._y - 4);
+        c.fillStyle = cssVar('--ok'); c.font = 'bold 10.5px ui-monospace, monospace';
+        c.fillText(String(n.f), n._x, n._y + 9);
+      } else {
+        c.fillStyle = '#5b6470'; c.font = 'bold 13px ui-monospace, monospace';
+        c.fillText(String(n.f), n._x, n._y + 1);
+      }
+      c.textBaseline = 'alphabetic';
+      if(!n.leaf){ nodes(n.l); nodes(n.r); }
+    })(root);
+  }
+
+  // ===== 深掘りポップアウト =====
+  const overlay = document.getElementById('overlay');
+  const cv2 = document.getElementById('cv2'), cv3 = document.getElementById('cv3'), cvw = document.getElementById('cvw');
+  const cap2 = document.getElementById('cap2'), capw = document.getElementById('capw');
+
+  function setupMini(canvas, ratio){
+    const dpr = window.devicePixelRatio || 1;
+    const cw = canvas.clientWidth || 560;
+    const ch = Math.round(cw * ratio);
+    canvas.style.height = ch + 'px';
+    canvas.width  = Math.round(cw * dpr);
+    canvas.height = Math.round(ch * dpr);
+    const c = canvas.getContext('2d');
+    c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { c, w:cw, h:ch };
+  }
+
+  // ① 頻度の棒＋符号の長さ（多い文字ほど短い符号）
+  function drawDeepSkew(){
+    const { c, w, h } = setupMini(cv2, 0.5);
+    c.clearRect(0, 0, w, h);
+    const s = (new Set(Array.from(el.text.value)).size >= 2) ? el.text.value : 'AAAAABBBCCD';   // 入力が単純(異なり<2)なら頻度のかたよりが見える例にフォールバック
+    const freqs = freqList(s);
+    const huff = buildHuffman(freqs);
+    const codes = codesOf(huff.root, huff.single);
+    const maxF = Math.max(...freqs.map(o => o.f), 1);
+    const n = freqs.length, padX = 24, gap = 14;
+    const bw = Math.min(56, (w - padX * 2 - gap * (n - 1)) / Math.max(n, 1));
+    const baseY = h - 34, topY = 40;   // 最頻棒の頂部を下げ、符号ラベルを凡例（y14）と重ねない
+    c.strokeStyle = '#dde3ec'; c.lineWidth = 1; c.beginPath(); c.moveTo(padX - 6, baseY); c.lineTo(w - padX + 6, baseY); c.stroke();
+    let x = padX;
+    freqs.forEach(o => {
+      const bh = (o.f / maxF) * (baseY - topY);
+      roundRect(c, x, baseY - bh, bw, bh, 4); c.fillStyle = cssVar('--ok-bg'); c.fill();
+      roundRect(c, x, baseY - bh, bw, bh, 4); c.strokeStyle = cssVar('--ok'); c.lineWidth = 1.5; c.stroke();
+      c.fillStyle = cssVar('--ink'); c.font = 'bold 13px ui-monospace, monospace'; c.textAlign = 'center';
+      c.fillText(o.ch === ' ' ? '␣' : o.ch, x + bw / 2, baseY + 15);
+      c.fillStyle = '#5b6470'; c.font = '10.5px ui-monospace, monospace';
+      c.fillText('×' + o.f, x + bw / 2, baseY + 28);
+      const code = codes.get(o.ch) || '0';
+      c.fillStyle = cssVar('--ok'); c.font = 'bold 11px ui-monospace, monospace';
+      c.fillText(code, x + bw / 2, baseY - bh - 7);
+      x += bw + gap;
+    });
+    c.fillStyle = '#7a8290'; c.font = '10.5px sans-serif'; c.textAlign = 'left';
+    c.fillText('↑ 割り当てられた符号', padX, 14);
+    const k = freqs.length, b = fixedBitsPerChar(k);
+    let comp = 0; for(const o of freqs) comp += o.f * (codes.get(o.ch) || '0').length;
+    const cps = Array.from(s);
+    cap2.innerHTML = '入力「' + escapeHtml(cps.slice(0, 24).join('')) + (cps.length > 24 ? '…' : '') + '」：固定長 ' + (cps.length * b) + ' ビット → ハフマン <b style="color:var(--ok)">' + comp + ' ビット</b>。';
+  }
+
+  // ② 語頭符号は一意に復号できる（小さな木でビット列をたどる）
+  function drawDeepDecode(){
+    const { c, w, h } = setupMini(cv3, 0.46);
+    c.clearRect(0, 0, w, h);
+    // 固定の例：A=0, B=10, C=110, D=111 の木
+    const root = { leaf:false, l:{ leaf:true, ch:'A' }, r:{ leaf:false,
+      l:{ leaf:true, ch:'B' }, r:{ leaf:false, l:{ leaf:true, ch:'C' }, r:{ leaf:true, ch:'D' } } } };
+    // 配置
+    const leaves = []; (function col(n){ if(n.leaf) leaves.push(n); else { col(n.l); col(n.r); } })(root);
+    let i = 0; const x0 = 30, x1 = w * 0.6, topPad = 22, levelH = 34, boxH = 26;
+    (function place(n, d){ n._y = topPad + d * levelH; if(n.leaf){ n._x = x0 + (i / (leaves.length - 1)) * (x1 - x0); i++; return; } place(n.l, d + 1); place(n.r, d + 1); n._x = (n.l._x + n.r._x) / 2; })(root, 0);
+    (function edges(n){ if(n.leaf) return; [['0', n.l], ['1', n.r]].forEach(([lab, ch]) => {
+      c.strokeStyle = '#b7c0cf'; c.lineWidth = 1.5; c.beginPath(); c.moveTo(n._x, n._y + boxH / 2); c.lineTo(ch._x, ch._y - boxH / 2); c.stroke();
+      const mx = (n._x + ch._x) / 2, my = (n._y + ch._y) / 2; c.fillStyle = '#fff'; c.beginPath(); c.arc(mx, my, 7.5, 0, 7); c.fill();
+      c.fillStyle = lab === '0' ? cssVar('--ok') : cssVar('--orange'); c.font = 'bold 11px ui-monospace, monospace'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(lab, mx, my); c.textBaseline = 'alphabetic'; edges(ch);
+    }); })(root);
+    (function nodes(n){ const bw = 28; roundRect(c, n._x - bw / 2, n._y - boxH / 2, bw, boxH, 6); c.fillStyle = n.leaf ? cssVar('--ok-bg') : '#fff'; c.fill(); roundRect(c, n._x - bw / 2, n._y - boxH / 2, bw, boxH, 6); c.strokeStyle = n.leaf ? cssVar('--ok-bd') : '#cdd6e3'; c.lineWidth = 1.5; c.stroke(); if(n.leaf){ c.fillStyle = cssVar('--ink'); c.font = 'bold 13px ui-monospace, monospace'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(n.ch, n._x, n._y); c.textBaseline = 'alphabetic'; } if(!n.leaf){ nodes(n.l); nodes(n.r); } })(root);
+
+    // 右側：ビット列を分解
+    const bx = w * 0.66, by = 30;
+    c.fillStyle = '#5b6470'; c.font = 'bold 11px sans-serif'; c.textAlign = 'left';
+    c.fillText('0 10 110 を続けて送ると', bx, by - 8);
+    c.font = 'bold 16px ui-monospace, monospace'; c.fillStyle = cssVar('--ink');
+    c.fillText('010110', bx, by + 16);
+    const segs = [['0', 'A'], ['10', 'B'], ['110', 'C']];
+    let sy = by + 42;
+    segs.forEach(([code, ch]) => {
+      c.fillStyle = cssVar('--ok'); c.font = 'bold 13px ui-monospace, monospace'; c.textAlign = 'left';
+      c.fillText(code, bx, sy); c.fillStyle = '#5b6470'; c.font = '12px sans-serif';
+      c.fillText(' → ' + ch, bx + 34, sy); sy += 20;
+    });
+    c.fillStyle = '#7a8290'; c.font = '10.5px sans-serif'; c.fillText('区切りなしで ABC に分かれる', bx, sy + 2);
+  }
+
+  // ③ 最悪ケース：連続のない列はランレングスで2倍に
+  function drawDeepLimit(){
+    const { c, w, h } = setupMini(cvw, 0.34);
+    c.clearRect(0, 0, w, h);
+    const orig = 6, comp = 12, maxU = 12;
+    const padL = 70, padR = 60, barW = w - padL - padR, barH = 26;   // 右にサイズラベル領域を確保（見切れ防止）
+    const y1 = 26, y2 = 64;
+    c.fillStyle = '#5b6470'; c.font = 'bold 11px sans-serif'; c.textAlign = 'left';
+    c.fillText('ABCDEF', 8, y1 + 4); c.fillText('A1…F1', 8, y2 + 4);
+    const drawb = (units, y, col, tint) => {
+      const bw = barW * (units / maxU); roundRect(c, padL, y - barH / 2, bw, barH, 5); c.fillStyle = tint; c.fill();
+      roundRect(c, padL, y - barH / 2, bw, barH, 5); c.strokeStyle = col; c.lineWidth = 1.5; c.stroke();
+      const cw = bw / units; c.strokeStyle = col; c.globalAlpha = 0.3; c.lineWidth = 1;
+      for(let i = 1; i < units; i++){ c.beginPath(); c.moveTo(padL + i * cw, y - barH / 2 + 2); c.lineTo(padL + i * cw, y + barH / 2 - 2); c.stroke(); }
+      c.globalAlpha = 1; c.fillStyle = col; c.font = 'bold 12px sans-serif'; c.textAlign = 'left'; c.fillText(units + ' マス', padL + bw + 8, y + 4);
+    };
+    drawb(orig, y1, '#8b94a3', '#eef1f6');
+    drawb(comp, y2, cssVar('--warn'), '#f7d8d5');
+    capw.innerHTML = 'いま入力中の文字を「すべて違う1文字ずつ」にすると、同じことが起きます。圧縮は万能ではありません。';
+  }
+
+  function openDeep(){
+    overlay.classList.add('open'); document.body.style.overflow = 'hidden';
+    requestAnimationFrame(() => { drawDeepSkew(); drawDeepDecode(); drawDeepLimit(); });
+  }
+  function closeDeep(){ overlay.classList.remove('open'); document.body.style.overflow = ''; }
+
+  // ===== 基礎ポップアウト =====
+  const overlayBasic = document.getElementById('overlay-basic');
+  const cvb1 = document.getElementById('cvb1'), cvb2 = document.getElementById('cvb2');
+  const cvb3 = document.getElementById('cvb3'), cvb4 = document.getElementById('cvb4');
+
+  function drawBits(c, bits, ox, oy, cell, label){
+    if(label){ c.fillStyle = '#5b6470'; c.font = 'bold 12px sans-serif'; c.textAlign = 'left'; c.fillText(label, ox, oy - 8); }
+    let x = ox;
+    bits.split('').forEach(bit => {
+      roundRect(c, x, oy, cell, cell, 4); c.fillStyle = bit === '1' ? cssVar('--ok-bg') : '#fff'; c.fill();
+      roundRect(c, x, oy, cell, cell, 4); c.strokeStyle = bit === '1' ? cssVar('--ok-bd') : cssVar('--line'); c.lineWidth = 1.4; c.stroke();
+      c.fillStyle = bit === '1' ? cssVar('--ok') : '#9aa4b2'; c.font = 'bold 15px ui-monospace, monospace'; c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.fillText(bit, x + cell / 2, oy + cell / 2 + 1); c.textBaseline = 'alphabetic';
+      x += cell + 5;
+    });
+    return x;
+  }
+  // ① A → 01000001
+  function drawBasic1(){
+    const { c, w, h } = setupMini(cvb1, 0.3);
+    c.clearRect(0, 0, w, h);
+    c.fillStyle = cssVar('--ink'); c.font = 'bold 30px ui-monospace, monospace'; c.textAlign = 'left'; c.textBaseline = 'middle';
+    c.fillText('A', 16, h / 2); c.textBaseline = 'alphabetic';
+    c.fillStyle = '#9aa4b2'; c.font = '20px sans-serif'; c.fillText('→', 44, h / 2 + 7);
+    drawBits(c, '01000001', 78, h / 2 - 16, 32, '');
+    c.fillStyle = '#7a8290'; c.font = '10.5px sans-serif'; c.fillText('8 ビット＝1 バイト', 78, h / 2 + 30);
+  }
+  // ② 4種類を2ビットで
+  function drawBasic2(){
+    const { c, w, h } = setupMini(cvb2, 0.34);
+    c.clearRect(0, 0, w, h);
+    const items = [['A', '00'], ['B', '01'], ['C', '10'], ['D', '11']];
+    const n = items.length, gap = 18, cell = 26, blockW = cell * 2 + 5;
+    const totalW = n * blockW + (n - 1) * gap;
+    let x = (w - totalW) / 2, oy = 30;
+    items.forEach(([ch, bits]) => {
+      c.fillStyle = cssVar('--ink'); c.font = 'bold 16px ui-monospace, monospace'; c.textAlign = 'center'; c.fillText(ch, x + blockW / 2, oy - 8);
+      drawBits(c, bits, x, oy, cell, '');
+      x += blockW + gap;
+    });
+    c.fillStyle = '#7a8290'; c.font = '10.5px sans-serif'; c.textAlign = 'center';
+    c.fillText('4通り＝2ビットで区別できる', w / 2, oy + cell + 22);
+  }
+  // ③ むだ：連続とかたより
+  function drawBasic3(){
+    const { c, w, h } = setupMini(cvb3, 0.42);
+    c.clearRect(0, 0, w, h);
+    // 左：連続の帯
+    const s = 'AAAABBC';
+    const cell = 24, gap = 5; let x = 16, oy = 24;
+    c.fillStyle = '#5b6470'; c.font = 'bold 11px sans-serif'; c.textAlign = 'left'; c.fillText('同じ文字の連続', x, oy - 8);
+    s.split('').forEach((ch, i) => {
+      const run = (ch === 'A');
+      roundRect(c, x, oy, cell, cell, 4); c.fillStyle = run ? cssVar('--ok-bg') : '#fff'; c.fill();
+      roundRect(c, x, oy, cell, cell, 4); c.strokeStyle = run ? cssVar('--ok-bd') : cssVar('--line'); c.lineWidth = 1.4; c.stroke();
+      c.fillStyle = run ? cssVar('--ok') : '#9aa4b2'; c.font = 'bold 13px ui-monospace, monospace'; c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.fillText(ch, x + cell / 2, oy + cell / 2 + 1); c.textBaseline = 'alphabetic'; x += cell + gap;
+    });
+    // 右：頻度の棒
+    const freqs = [['A', 5], ['B', 2], ['C', 1]];
+    const bx = 16, by = h - 14, maxF = 5, topY = oy + cell + 22, bw = 26, bgap = 16;
+    c.fillStyle = '#5b6470'; c.font = 'bold 11px sans-serif'; c.textAlign = 'left'; c.fillText('出やすい文字（かたより）', bx, topY - 6);
+    let xx = bx;
+    freqs.forEach(([ch, f]) => {
+      const bh = (f / maxF) * (by - topY);
+      roundRect(c, xx, by - bh, bw, bh, 4); c.fillStyle = cssVar('--ok-bg'); c.fill();
+      roundRect(c, xx, by - bh, bw, bh, 4); c.strokeStyle = cssVar('--ok'); c.lineWidth = 1.4; c.stroke();
+      c.fillStyle = cssVar('--ink'); c.font = 'bold 11px ui-monospace, monospace'; c.textAlign = 'center'; c.fillText(ch, xx + bw / 2, by + 11);
+      xx += bw + bgap;
+    });
+  }
+  // ④ before/after バー
+  function drawBasic4(){
+    const { c, w, h } = setupMini(cvb4, 0.3);
+    c.clearRect(0, 0, w, h);
+    const padL = 64, padR = 16, barW = w - padL - padR, maxU = 10;
+    const draw = (units, y, col, tint, lab) => {
+      const bw = barW * (units / maxU); roundRect(c, padL, y - 14, bw, 28, 5); c.fillStyle = tint; c.fill();
+      roundRect(c, padL, y - 14, bw, 28, 5); c.strokeStyle = col; c.lineWidth = 1.5; c.stroke();
+      const cw = bw / units; c.strokeStyle = col; c.globalAlpha = 0.3; c.lineWidth = 1;
+      for(let i = 1; i < units; i++){ c.beginPath(); c.moveTo(padL + i * cw, y - 12); c.lineTo(padL + i * cw, y + 12); c.stroke(); }
+      c.globalAlpha = 1; c.fillStyle = '#5b6470'; c.font = 'bold 11px sans-serif'; c.textAlign = 'left'; c.fillText(lab, 8, y + 4);
+    };
+    draw(10, 34, '#8b94a3', '#eef1f6', 'もとの長さ');
+    draw(4, 74, cssVar('--ok'), '#dfe7fb', '圧縮後');
+  }
+  function openBasic(){
+    overlayBasic.classList.add('open'); document.body.style.overflow = 'hidden';
+    requestAnimationFrame(() => { drawBasic1(); drawBasic2(); drawBasic3(); drawBasic4(); });
+  }
+  function closeBasic(){ overlayBasic.classList.remove('open'); document.body.style.overflow = ''; }
+
+  function escapeHtml(s){ return s.replace(/[&<>"']/g, ch => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[ch])); }
+
+  // ===== プリセット =====
+  const PRESETS = {
+    rle: [
+      { t:'AAAAAAAA', tag:'連続だらけ' },
+      { t:'AAAABBBCCD', tag:'ほどほど' },
+      { t:'AABBCC', tag:'境界・同じ' },
+      { t:'ABABAB', tag:'連続なし→増える' }
+    ],
+    huffman: [
+      { t:'AAAAAAAABBBCD', tag:'かたより大' },
+      { t:'AAAAABBBCCD', tag:'かたよりあり' },
+      { t:'ABCDABCD', tag:'一様→縮まない' }
+    ]
+  };
+  function renderPresets(){
+    el.presets.innerHTML = '';
+    PRESETS[mode === 'rle' ? 'rle' : 'huffman'].forEach(p => {
+      const b = document.createElement('button');
+      b.innerHTML = '<span style="font-family:var(--mono)">' + p.t + '</span><span class="tag">' + p.tag + '</span>';
+      b.addEventListener('click', () => { el.text.value = p.t; resetProcessState(); update(); });
+      el.presets.appendChild(b);
+    });
+  }
+  function resetProcessState(){ stopScan(); scanIdx = -1; huffStep = (mode === 'huffman') ? bigStep() : 0; }
+  function bigStep(){ const r = compute(); return r.huff ? r.huff.merges.length : 0; }   // 既定は完成形
+
+  // ===== モード切り替え =====
+  function setMode(m){
+    mode = m;
+    el.mRle.classList.toggle('active', m === 'rle');
+    el.mHuff.classList.toggle('active', m === 'huffman');
+    el.mRle.setAttribute('aria-selected', m === 'rle');
+    el.mHuff.setAttribute('aria-selected', m === 'huffman');
+    resetProcessState();
+    renderPresets();
+    update();
+  }
+
+  // ===== イベント =====
+  el.mRle.addEventListener('click', () => setMode('rle'));
+  el.mHuff.addEventListener('click', () => setMode('huffman'));
+  el.text.addEventListener('input', () => { resetProcessState(); update(); });
+  document.getElementById('open-deep').addEventListener('click', openDeep);
+  document.getElementById('close-deep').addEventListener('click', closeDeep);
+  overlay.addEventListener('click', e => { if(e.target === overlay) closeDeep(); });
+  document.getElementById('open-basic').addEventListener('click', openBasic);
+  document.getElementById('close-basic').addEventListener('click', closeBasic);
+  overlayBasic.addEventListener('click', e => { if(e.target === overlayBasic) closeBasic(); });
+  document.addEventListener('keydown', e => {
+    if(e.key !== 'Escape') return;
+    if(overlay.classList.contains('open')) closeDeep();
+    if(overlayBasic.classList.contains('open')) closeBasic();
+  });
+  window.addEventListener('resize', () => {
+    drawMain(); renderProcess();
+    if(overlay.classList.contains('open')){ drawDeepSkew(); drawDeepDecode(); drawDeepLimit(); }
+    if(overlayBasic.classList.contains('open')){ drawBasic1(); drawBasic2(); drawBasic3(); drawBasic4(); }
+  });
+
+  // ===========================================================================
+  //  全般版で追加したモジュール（可逆⇄非可逆 / 写真JPEG / 音MP3 / 拡張子マップ）
+  // ===========================================================================
+  function fmtBytes(b){
+    if(b >= 1e6) return (b / 1e6).toFixed(2) + ' MB';
+    if(b >= 1e3) return (b / 1e3).toFixed(1) + ' KB';
+    return Math.round(b) + ' B';
+  }
+  function arrowTo(c, x1, y1, x2, y2){
+    c.beginPath(); c.moveTo(x1, y1); c.lineTo(x2, y2); c.stroke();
+    const a = Math.atan2(y2 - y1, x2 - x1);
+    c.beginPath(); c.moveTo(x2, y2);
+    c.lineTo(x2 - 8 * Math.cos(a - 0.42), y2 - 8 * Math.sin(a - 0.42));
+    c.lineTo(x2 - 8 * Math.cos(a + 0.42), y2 - 8 * Math.sin(a + 0.42));
+    c.closePath(); c.fill();
+  }
+
+  // ===== 可逆 ⇄ 非可逆（往復の図）=====
+  const RT = (function(){
+    const cv = document.getElementById('rt-cv'), c = cv.getContext('2d');
+    const box = document.getElementById('rt-box'), banner = document.getElementById('rt-banner');
+    const bL = document.getElementById('rt-loss'), bY = document.getElementById('rt-lossy');
+    let mode = 'lossless';
+    function ball(cx, cy, r, poster){
+      if(!poster){
+        const g = c.createRadialGradient(cx - r * 0.35, cy - r * 0.35, r * 0.15, cx, cy, r);
+        g.addColorStop(0, '#cfe0ff'); g.addColorStop(0.55, '#5b86e0'); g.addColorStop(1, '#22408f');
+        c.fillStyle = g; c.beginPath(); c.arc(cx, cy, r, 0, 7); c.fill();
+      } else {
+        const cols = ['#cfe0ff', '#88aaee', '#4f74cc', '#22408f'], n = cols.length;
+        for(let i = 0; i < n; i++){
+          c.fillStyle = cols[i];
+          c.beginPath(); c.arc(cx - r * 0.16, cy - r * 0.16, r * (1 - i / n), 0, 7); c.fill();
+        }
+      }
+      c.strokeStyle = 'rgba(16,22,31,.16)'; c.lineWidth = 1; c.beginPath(); c.arc(cx, cy, r, 0, 7); c.stroke();
+    }
+    function sbar(x, y, full, f, col, tint, lab){
+      const w = Math.max(8, full * f);
+      roundRect(c, x, y, w, 15, 4); c.fillStyle = tint; c.fill();
+      roundRect(c, x, y, w, 15, 4); c.strokeStyle = col; c.lineWidth = 1.4; c.stroke();
+      c.fillStyle = col; c.font = 'bold 10.5px sans-serif'; c.textAlign = 'left'; c.textBaseline = 'middle';
+      c.fillText(lab, x + w + 6, y + 8); c.textBaseline = 'alphabetic';
+    }
+    function draw(){
+      const dim = setupCanvas(cv, c, 252), W = dim.w, H = dim.h;
+      c.clearRect(0, 0, W, H);
+      const poster = (mode === 'lossy');
+      const okCol = cssVar('--ok'), warnCol = cssVar('--warn');
+      const accent = poster ? warnCol : okCol;
+      const r = 44, cyc = 88, x1 = W * 0.15, x3 = W * 0.85;
+      c.fillStyle = '#5b6470'; c.font = 'bold 12.5px sans-serif'; c.textAlign = 'center';
+      c.fillText('元データ', x1, 26);
+      c.fillText('復元したデータ', x3, 26);
+      ball(x1, cyc, r, false);
+      ball(x3, cyc, r, poster);
+      const bx = W / 2, bw = 92, bh = 34, my = cyc;
+      c.strokeStyle = '#9aa4b2'; c.fillStyle = '#9aa4b2'; c.lineWidth = 2;
+      arrowTo(c, x1 + r + 8, my, bx - bw / 2 - 8, my);
+      roundRect(c, bx - bw / 2, my - bh / 2, bw, bh, 8); c.fillStyle = '#fff'; c.fill();
+      roundRect(c, bx - bw / 2, my - bh / 2, bw, bh, 8); c.strokeStyle = accent; c.lineWidth = 1.6; c.stroke();
+      c.fillStyle = accent; c.font = 'bold 13px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.fillText('圧縮 → 復元', bx, my); c.textBaseline = 'alphabetic';
+      c.strokeStyle = '#9aa4b2'; c.fillStyle = '#9aa4b2'; c.lineWidth = 2;
+      arrowTo(c, bx + bw / 2 + 8, my, x3 - r - 8, my);
+      const sBarW = 148, sx = bx - sBarW / 2, sy = my + 52;
+      c.fillStyle = '#5b6470'; c.font = '11px sans-serif'; c.textAlign = 'left';
+      c.fillText('圧縮後の大きさ', sx, sy - 7);
+      sbar(sx, sy, sBarW, 1, '#8b94a3', '#eef1f6', '元');
+      const frac = poster ? 0.12 : 0.55;
+      sbar(sx, sy + 22, sBarW, frac, accent, poster ? '#f7d8d5' : '#dfe7fb', Math.round(frac * 100) + '%');
+      const by = H - 22; c.textAlign = 'center'; c.font = 'bold 13px sans-serif';
+      c.fillStyle = poster ? warnCol : okCol;
+      c.fillText(poster ? '✗ 元とちがう（なめらかさが失われた）' : '✓ 元と完全に一致', W / 2, by);
+    }
+    function refresh(){
+      const poster = (mode === 'lossy');
+      box.className = 'canvas-box ' + (poster ? 'warn' : 'ok');
+      banner.className = 'banner ' + (poster ? 'warn' : 'ok');
+      banner.innerHTML = poster
+        ? '⚠ 元には戻りません — よく見ると劣化しています<small>人が気づきにくい情報まで捨てるので、復元しても元とは少しちがいます。そのぶん大きく縮みます。写真JPEG・音楽MP3 はこの仲間です。</small>'
+        : '✓ 完全に元へ戻りました — 1ビットも違いません<small>むだ（規則性）だけを削るので、復元すれば元データと完全に一致します。文書・プログラム・ZIP・PNG はこの仲間です。</small>';
+      bL.classList.toggle('active', !poster); bY.classList.toggle('active', poster);
+      bL.setAttribute('aria-selected', String(!poster)); bY.setAttribute('aria-selected', String(poster));
+      draw();
+    }
+    function init(){
+      bL.addEventListener('click', () => { mode = 'lossless'; refresh(); });
+      bY.addEventListener('click', () => { mode = 'lossy'; refresh(); });
+      window.addEventListener('resize', draw);
+      refresh();
+    }
+    return { init };
+  })();
+
+  // ===== 写真の非可逆圧縮（JPEG・ブラウザ内蔵エンコーダで実測）=====
+  const IMG = (function(){
+    const SRCW = 320, SRCH = 240;
+    const src = document.createElement('canvas'); src.width = SRCW; src.height = SRCH;
+    const sctx = src.getContext('2d', { willReadFrequently: true });
+    const disp = document.getElementById('img-disp');
+    const loupe = document.getElementById('img-loupe');
+    const q = document.getElementById('img-q'), qVal = document.getElementById('img-q-val');
+    const elRaw = document.getElementById('img-raw'), elPng = document.getElementById('img-png'),
+          elJpg = document.getElementById('img-jpg'), elRatio = document.getElementById('img-ratio'),
+          jpgRo = document.getElementById('img-jpg-ro'),
+          banner = document.getElementById('img-banner'), cap = document.getElementById('img-disp-cap');
+    let dctx = null, dW = 0, dH = 0, jpgImg = null, pngBytes = 0;
+    let cx = SRCW / 2, cy = SRCH / 2;
+
+    function drawScene(g){
+      const W = SRCW, H = SRCH;
+      const sky = g.createLinearGradient(0, 0, 0, H * 0.72);
+      sky.addColorStop(0, '#a9d4f5'); sky.addColorStop(1, '#e2f1fb');
+      g.fillStyle = sky; g.fillRect(0, 0, W, H);
+      const sx = W * 0.8, sy = H * 0.2;
+      g.strokeStyle = '#ffd23f'; g.lineWidth = 3;
+      for(let k = 0; k < 8; k++){ const a = k * Math.PI / 4; g.beginPath(); g.moveTo(sx + Math.cos(a) * 30, sy + Math.sin(a) * 30); g.lineTo(sx + Math.cos(a) * 41, sy + Math.sin(a) * 41); g.stroke(); }
+      g.fillStyle = '#ffd23f'; g.beginPath(); g.arc(sx, sy, 24, 0, 7); g.fill();
+      g.fillStyle = '#7fa7c9'; g.beginPath(); g.moveTo(0, H * 0.62); g.lineTo(W * 0.32, H * 0.30); g.lineTo(W * 0.6, H * 0.62); g.closePath(); g.fill();
+      g.fillStyle = '#9ab8d6'; g.beginPath(); g.moveTo(W * 0.4, H * 0.62); g.lineTo(W * 0.7, H * 0.33); g.lineTo(W, H * 0.62); g.closePath(); g.fill();
+      g.fillStyle = '#ffffff';
+      g.beginPath(); g.moveTo(W * 0.32, H * 0.30); g.lineTo(W * 0.27, H * 0.40); g.lineTo(W * 0.37, H * 0.40); g.closePath(); g.fill();
+      g.beginPath(); g.moveTo(W * 0.7, H * 0.33); g.lineTo(W * 0.65, H * 0.43); g.lineTo(W * 0.75, H * 0.43); g.closePath(); g.fill();
+      g.fillStyle = '#8bc56a'; g.fillRect(0, H * 0.6, W, H * 0.4);
+      g.fillStyle = '#79b85b'; g.fillRect(0, H * 0.8, W, H * 0.2);
+      g.strokeStyle = '#dcca9a'; g.lineWidth = 15; g.lineCap = 'round';
+      g.beginPath(); g.moveTo(W * 0.52, H); g.quadraticCurveTo(W * 0.46, H * 0.82, W * 0.63, H * 0.7); g.stroke();
+      g.lineCap = 'butt';
+      const hx = W * 0.17, hy = H * 0.55, hw = 80, hh = 56;
+      g.fillStyle = '#f3ead4'; g.fillRect(hx, hy, hw, hh);
+      g.fillStyle = '#c75b4a'; g.beginPath(); g.moveTo(hx - 9, hy); g.lineTo(hx + hw / 2, hy - 34); g.lineTo(hx + hw + 9, hy); g.closePath(); g.fill();
+      g.fillStyle = '#8a5a3b'; g.fillRect(hx + hw * 0.42, hy + hh * 0.42, 17, hh * 0.58);
+      function win(wx, wy){ g.fillStyle = '#7ec8e3'; g.fillRect(wx, wy, 17, 17); g.strokeStyle = '#5a3d2b'; g.lineWidth = 1.5; g.strokeRect(wx, wy, 17, 17); g.beginPath(); g.moveTo(wx + 8.5, wy); g.lineTo(wx + 8.5, wy + 17); g.moveTo(wx, wy + 8.5); g.lineTo(wx + 17, wy + 8.5); g.stroke(); }
+      win(hx + 8, hy + 11); win(hx + hw - 25, hy + 11);
+      const tx = W * 0.72, ty = H * 0.66;
+      g.fillStyle = '#7a5230'; g.fillRect(tx - 5, ty, 10, 34);
+      g.fillStyle = '#4e9b4a'; g.beginPath(); g.arc(tx, ty - 6, 23, 0, 7); g.fill();
+      g.fillStyle = '#3f8a3d'; for(let k = 0; k < 9; k++){ const a = k * 0.9; g.beginPath(); g.arc(tx + Math.cos(a) * 13, ty - 6 + Math.sin(a) * 11, 3, 0, 7); g.fill(); }
+      g.strokeStyle = '#444'; g.lineWidth = 1.6;
+      [[W * 0.42, H * 0.17], [W * 0.5, H * 0.21], [W * 0.36, H * 0.22]].forEach(([bx, by]) => { g.beginPath(); g.moveTo(bx, by); g.lineTo(bx + 5, by - 4); g.lineTo(bx + 10, by); g.stroke(); });
+    }
+    function b64bytes(url){ const i = url.indexOf(','); const s = url.slice(i + 1); let p = 0; if(s.endsWith('==')) p = 2; else if(s.endsWith('=')) p = 1; return Math.floor(s.length * 3 / 4) - p; }
+    function sizeDisp(){ const dpr = window.devicePixelRatio || 1; const cw = disp.clientWidth || 440, ch = Math.round(cw * SRCH / SRCW); disp.style.height = ch + 'px'; disp.width = Math.round(cw * dpr); disp.height = Math.round(ch * dpr); dctx = disp.getContext('2d'); dctx.setTransform(dpr, 0, 0, dpr, 0, 0); dW = cw; dH = ch; }
+    function afterSrcChange(){ pngBytes = b64bytes(src.toDataURL('image/png')); render(); }
+    function render(){
+      const qq = parseInt(q.value, 10); qVal.textContent = qq;
+      const url = src.toDataURL('image/jpeg', qq / 100);
+      const jb = b64bytes(url), raw = SRCW * SRCH * 3;
+      elRaw.textContent = fmtBytes(raw); elPng.textContent = fmtBytes(pngBytes);
+      elJpg.textContent = fmtBytes(jb); elRatio.textContent = (jb / raw * 100).toFixed(1) + '%';
+      const visibleLoss = qq < 55;   // JPEG は常に非可逆。これは「劣化が目に見えるか」の判定
+      jpgRo.classList.toggle('alias', visibleLoss);
+      banner.className = 'banner ' + (visibleLoss ? 'warn' : 'ok');
+      if(visibleLoss){
+        banner.innerHTML = '⚠ ブロックノイズが出ています — 元には戻りません<small>画質 ' + qq + ' では細かい変化を多く捨て、無圧縮の ' + (jb / raw * 100).toFixed(1) + '%（' + fmtBytes(jb) + '）まで縮みました。拡大すると 8×8 のブロックが見えます。</small>';
+        cap.textContent = '画質 ' + qq + '：ブロックノイズが目立つ';
+      } else {
+        banner.innerHTML = '✓ 見た目はほぼ元のまま — でも非可逆です<small>画質 ' + qq + ' で無圧縮の ' + (jb / raw * 100).toFixed(1) + '%（' + fmtBytes(jb) + '）。可逆の PNG（' + fmtBytes(pngBytes) + '）より小さく、写真では JPEG が有利です。</small>';
+        cap.textContent = '画質 ' + qq + '：ほぼ元のまま';
+      }
+      const im = new Image();
+      im.onload = () => { jpgImg = im; if(!dctx) sizeDisp(); paint(); };
+      im.src = url;
+    }
+    function paint(){
+      if(!jpgImg || !dctx) return;
+      dctx.imageSmoothingEnabled = true; dctx.clearRect(0, 0, dW, dH);
+      dctx.drawImage(jpgImg, 0, 0, SRCW, SRCH, 0, 0, dW, dH);
+      const rwS = 28, rhS = Math.round(rwS * (loupe.clientHeight || 150) / (loupe.clientWidth || 300));
+      const mx = cx / SRCW * dW, my = cy / SRCH * dH, rw = rwS / SRCW * dW, rh = rhS / SRCH * dH;
+      dctx.strokeStyle = '#fff'; dctx.lineWidth = 2.5; dctx.strokeRect(mx - rw / 2, my - rh / 2, rw, rh);
+      dctx.strokeStyle = cssVar('--orange'); dctx.lineWidth = 1.3; dctx.strokeRect(mx - rw / 2, my - rh / 2, rw, rh);
+      drawLoupe(rwS, rhS);
+    }
+    function drawLoupe(rwS, rhS){
+      const dpr = window.devicePixelRatio || 1, cw = loupe.clientWidth || 300, ch = Math.round(cw * 0.5);
+      loupe.style.height = ch + 'px'; loupe.width = Math.round(cw * dpr); loupe.height = Math.round(ch * dpr);
+      const lc = loupe.getContext('2d'); lc.setTransform(dpr, 0, 0, dpr, 0, 0); lc.clearRect(0, 0, cw, ch);
+      if(!jpgImg) return;
+      const rw = rwS || 28, rh = rhS || Math.round(rw * ch / cw);
+      let rx = Math.round(cx - rw / 2), ry = Math.round(cy - rh / 2);
+      rx = Math.max(0, Math.min(SRCW - rw, rx)); ry = Math.max(0, Math.min(SRCH - rh, ry));
+      lc.imageSmoothingEnabled = false;
+      lc.drawImage(jpgImg, rx, ry, rw, rh, 0, 0, cw, ch);
+      lc.strokeStyle = '#e6eaf1'; lc.strokeRect(0.5, 0.5, cw - 1, ch - 1);
+    }
+    function onClick(e){
+      const r = disp.getBoundingClientRect();
+      cx = (e.clientX - r.left) / r.width * SRCW; cy = (e.clientY - r.top) / r.height * SRCH;
+      paint();
+    }
+    function onUpload(e){
+      const f = e.target.files[0]; if(!f) return;
+      const rd = new FileReader();
+      rd.onload = ev => { const img = new Image(); img.onload = () => {
+        sctx.clearRect(0, 0, SRCW, SRCH);
+        const ar = img.width / img.height, tar = SRCW / SRCH; let sw, sh, sx, sy;
+        if(ar > tar){ sh = img.height; sw = sh * tar; sx = (img.width - sw) / 2; sy = 0; }
+        else { sw = img.width; sh = sw / tar; sx = 0; sy = (img.height - sh) / 2; }
+        sctx.drawImage(img, sx, sy, sw, sh, 0, 0, SRCW, SRCH);
+        cx = SRCW / 2; cy = SRCH / 2; afterSrcChange();
+      }; img.src = ev.target.result; };
+      rd.readAsDataURL(f);
+    }
+    let timer = null;
+    function debounced(){ if(timer) clearTimeout(timer); timer = setTimeout(render, 60); }
+    function init(){
+      q.addEventListener('input', () => { qVal.textContent = q.value; debounced(); });
+      document.querySelectorAll('#img-presets button').forEach(b => b.addEventListener('click', () => { q.value = b.dataset.q; render(); }));
+      document.getElementById('img-upload-btn').addEventListener('click', () => document.getElementById('img-upload').click());
+      document.getElementById('img-upload').addEventListener('change', onUpload);
+      document.getElementById('img-reset').addEventListener('click', () => { sctx.clearRect(0, 0, SRCW, SRCH); drawScene(sctx); cx = SRCW / 2; cy = SRCH / 2; afterSrcChange(); });
+      disp.addEventListener('click', onClick);
+      window.addEventListener('resize', () => { sizeDisp(); paint(); });
+      drawScene(sctx); afterSrcChange();
+    }
+    return { init };
+  })();
+
+  // ===== 音の非可逆圧縮（標本化・量子化の波形）=====
+  const AU = (function(){
+    const cv = document.getElementById('au-wave'), c = cv.getContext('2d');
+    const box = document.getElementById('au-box'), banner = document.getElementById('au-banner');
+    const fs = document.getElementById('au-fs'), fsVal = document.getElementById('au-fs-val');
+    const bits = document.getElementById('au-bits'), bitsVal = document.getElementById('au-bits-val');
+    const showOrig = document.getElementById('au-show-orig'), showSamp = document.getElementById('au-show-samples');
+    const roFs = document.getElementById('au-fs-ro'), roBits = document.getElementById('au-bits-ro'),
+          roLev = document.getElementById('au-levels'), roSize = document.getElementById('au-size'),
+          sizeRo = document.getElementById('au-size-ro');
+    const playBtn = document.getElementById('au-play');
+    const WIN_MS = 0.8;
+    function wave(t){ return 0.60 * Math.sin(2 * Math.PI * 2.5 * t) + 0.27 * Math.sin(2 * Math.PI * 6 * t + 0.8) + 0.10 * Math.sin(2 * Math.PI * 11 * t); }
+    function near(){ return parseFloat(fs.value) >= 22.05 && parseInt(bits.value, 10) >= 12; }
+    function draw(){
+      const dim = setupCanvas(cv, c, 262), W = dim.w, H = dim.h;
+      c.clearRect(0, 0, W, H);
+      const x0 = 16, x1 = W - 16, y0 = 22, y1 = H - 30, midY = (y0 + y1) / 2, amp = (y1 - y0) / 2 - 6;
+      const fsK = parseFloat(fs.value), b = parseInt(bits.value, 10);
+      const nLevels = Math.pow(2, b), nPts = Math.max(2, Math.round(fsK * WIN_MS));
+      const X = t => x0 + t * (x1 - x0), Y = v => midY - v * amp;
+      const ok = near(), stepCol = ok ? cssVar('--ok') : cssVar('--warn');
+      const stepTint = ok ? 'rgba(47,85,212,.10)' : 'rgba(216,54,46,.10)';
+      if(nLevels <= 16){
+        c.strokeStyle = '#eef1f6'; c.lineWidth = 1;
+        for(let k = 0; k < nLevels; k++){ const y = Y(k / (nLevels - 1) * 2 - 1); c.beginPath(); c.moveTo(x0, y); c.lineTo(x1, y); c.stroke(); }
+      }
+      c.strokeStyle = '#dfe4ee'; c.lineWidth = 1; c.beginPath(); c.moveTo(x0, midY); c.lineTo(x1, midY); c.stroke();
+      const qv = v => { const u = (v + 1) / 2; return Math.round(u * (nLevels - 1)) / (nLevels - 1) * 2 - 1; };
+      const samples = [];
+      for(let i = 0; i < nPts; i++){ const t = i / (nPts - 1); samples.push({ t, v: wave(t), q: qv(wave(t)) }); }
+      c.beginPath(); c.moveTo(X(0), midY);
+      for(let i = 0; i < nPts; i++){ const xa = X(i / (nPts - 1)), xb = (i < nPts - 1) ? X((i + 1) / (nPts - 1)) : x1; c.lineTo(xa, Y(samples[i].q)); c.lineTo(xb, Y(samples[i].q)); }
+      c.lineTo(x1, midY); c.closePath(); c.fillStyle = stepTint; c.fill();
+      c.strokeStyle = stepCol; c.lineWidth = 2.2; c.beginPath();
+      for(let i = 0; i < nPts; i++){ const xa = X(i / (nPts - 1)), xb = (i < nPts - 1) ? X((i + 1) / (nPts - 1)) : x1; if(i === 0) c.moveTo(xa, Y(samples[i].q)); else c.lineTo(xa, Y(samples[i].q)); c.lineTo(xb, Y(samples[i].q)); }
+      c.stroke();
+      if(showOrig.checked){
+        c.strokeStyle = '#9aa4b2'; c.lineWidth = 1.6; c.setLineDash([5, 3]); c.beginPath();
+        for(let px = 0; px <= 240; px++){ const t = px / 240, x = X(t), y = Y(wave(t)); if(px === 0) c.moveTo(x, y); else c.lineTo(x, y); }
+        c.stroke(); c.setLineDash([]);
+      }
+      if(showSamp.checked){
+        c.fillStyle = cssVar('--orange');
+        for(let i = 0; i < nPts; i++){ c.beginPath(); c.arc(X(samples[i].t), Y(samples[i].v), 3, 0, 7); c.fill(); }
+      }
+      c.fillStyle = '#5b6470'; c.font = 'bold 11px sans-serif'; c.textAlign = 'left';
+      c.fillText('窓：約 ' + WIN_MS + ' ミリ秒ぶん（' + nPts + ' 点で測定 / ' + nLevels + ' 段に量子化）', x0, H - 8);
+    }
+    function refresh(){
+      const fsK = parseFloat(fs.value), b = parseInt(bits.value, 10);
+      const fsR = Math.round(fsK * 10) / 10, nLevels = Math.pow(2, b);
+      fsVal.textContent = fsR; bitsVal.textContent = b;
+      roFs.textContent = fsR + ' kHz'; roBits.textContent = b + ' bit';
+      roLev.textContent = nLevels.toLocaleString() + ' 段';
+      const bytesPerSec = fsK * 1000 * b * 2 / 8;
+      roSize.textContent = fmtBytes(bytesPerSec) + ' /秒';
+      const ok = near();
+      const fsLow = fsK < 22.05, bitsLow = b < 12;
+      sizeRo.classList.toggle('alias', !ok);
+      box.className = 'canvas-box ' + (ok ? 'ok' : 'warn');
+      banner.className = 'banner ' + (ok ? 'ok' : 'warn');
+      if(ok){
+        banner.innerHTML = '✓ 元の波にほぼ重なっています<small>標本化周波数も量子化ビット数も十分で、デジタル化によるずれはごくわずかです。そのぶんデータは大きめ（' + fmtBytes(bytesPerSec) + '／秒）です。</small>';
+      } else {
+        const head = (fsLow && bitsLow)
+          ? '⚠ 測る回数も高さの段数も足りません — 波が横にも縦にも粗くなっています'
+          : (fsLow
+              ? '⚠ 測る回数（標本化周波数）が足りません — 波の細かい動きを取りこぼしています'
+              : '⚠ 高さの段数（量子化ビット数）が足りません — 階段が縦に粗くなっています');
+        banner.innerHTML = head + '<small>データは ' + fmtBytes(bytesPerSec) + '／秒 と小さいですが、標本化・量子化で失われた情報は元に戻せません。MP3・AAC の非可逆圧縮も、この「戻せない削除」を利用します。</small>';
+      }
+      draw();
+    }
+    let actx = null;
+    function tone(rateK, bitsN){
+      const SR = 44100, dur = 0.55, N = Math.round(SR * dur);
+      const buf = actx.createBuffer(1, N, SR), d = buf.getChannelData(0);
+      const step = Math.max(1, Math.round(SR / (rateK * 1000))), lv = Math.pow(2, bitsN);
+      let held = 0;
+      for(let i = 0; i < N; i++){
+        const raw = 0.6 * Math.sin(2 * Math.PI * 440 * i / SR) + 0.3 * Math.sin(2 * Math.PI * 660 * i / SR);
+        if(i % step === 0){ let u = (raw + 1) / 2; u = Math.max(0, Math.min(1, u)); u = Math.round(u * (lv - 1)) / (lv - 1); held = u * 2 - 1; }
+        const env = Math.min(1, i / 1200, (N - i) / 1200);
+        d[i] = held * env * 0.6;
+      }
+      return buf;
+    }
+    function play(){
+      try{
+        if(!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+        if(actx.state === 'suspended') actx.resume();
+        playBtn.disabled = true;
+        const t0 = actx.currentTime + 0.05;
+        const s1 = actx.createBufferSource(); s1.buffer = tone(44.1, 16); s1.connect(actx.destination); s1.start(t0);
+        const s2 = actx.createBufferSource(); s2.buffer = tone(parseFloat(fs.value), parseInt(bits.value, 10)); s2.connect(actx.destination); s2.start(t0 + 0.75);
+        s2.onended = () => { playBtn.disabled = false; };
+      } catch(err){ playBtn.disabled = false; }
+    }
+    function init(){
+      fs.addEventListener('input', refresh); bits.addEventListener('input', refresh);
+      showOrig.addEventListener('change', draw); showSamp.addEventListener('change', draw);
+      document.querySelectorAll('#au-presets button').forEach(b => b.addEventListener('click', () => { fs.value = b.dataset.fs; bits.value = b.dataset.bits; refresh(); }));
+      playBtn.addEventListener('click', play);
+      window.addEventListener('resize', draw);
+      refresh();
+    }
+    return { init };
+  })();
+
+  // ===== 拡張子マップ =====
+  const FMT = (function(){
+    const FORMATS = {
+      img: [
+        { ext: 'PNG',  kind: 'lossless', mech: 'DEFLATE（繰り返し＋ハフマン）', use: 'イラスト・図・スクリーンショット・透過が要る画像', revert: '完全に戻せる' },
+        { ext: 'GIF',  kind: 'lossless', mech: 'LZW（繰り返しのまとめ）。色は256色まで', use: '簡単なアニメ・アイコン・透過', revert: 'LZW符号化そのものは可逆。色数が256色を超える画像は256色に減色してから保存し、この減色だけは元に戻らない' },
+        { ext: 'JPEG', kind: 'lossy',    mech: 'DCT で細かい変化を粗く記録＋ハフマン', use: '写真・グラデーションのある画像', revert: '戻せない（画質を下げるほど劣化）' },
+        { ext: 'WebP', kind: 'both',     mech: '可逆モードと非可逆モードの両方を持つ', use: 'Web 用の写真・イラスト全般', revert: 'モードしだい（可逆なら戻せる）' },
+        { ext: 'BMP',  kind: 'lossless', mech: '基本は無圧縮（画素をそのまま並べる）', use: '昔の Windows 標準。今はあまり使わない', revert: '無圧縮なので劣化なし。ただし大きい' }
+      ],
+      audio: [
+        { ext: 'WAV',  kind: 'lossless', mech: '無圧縮の PCM（測って丸めたまま）', use: '編集・原盤。劣化させたくない録音', revert: '無圧縮なので劣化なし。ただし大きい' },
+        { ext: 'FLAC', kind: 'lossless', mech: '予測して残差だけを符号化', use: '高音質で保存したい音楽', revert: '完全に戻せる（半分ほどに縮む）' },
+        { ext: 'ALAC', kind: 'lossless', mech: 'Apple の可逆圧縮', use: 'Apple 環境での高音質保存', revert: '完全に戻せる' },
+        { ext: 'MP3',  kind: 'lossy',    mech: '心理音響モデルで聞こえにくい音を捨てる', use: '音楽の配布・持ち歩き', revert: '戻せない（約10分の1に縮む）' },
+        { ext: 'AAC',  kind: 'lossy',    mech: 'MP3 の後継。同じ容量でより高音質', use: '動画の音声・配信・スマホ', revert: '戻せない' }
+      ],
+      other: [
+        { ext: 'ZIP',  kind: 'lossless', mech: 'DEFLATE（繰り返し＋ハフマン）', use: '文書・プログラムなど何でも', revert: '完全に戻せる' },
+        { ext: 'MP4 / H.264', kind: 'lossy', mech: '前後のコマの差分＋DCT（動画コーデック）', use: '動画の保存・配信', revert: '戻せない' }
+      ]
+    };
+    const LABEL = { lossless: '可逆', lossy: '非可逆', both: '可逆／非可逆' };
+    const detail = document.getElementById('fmt-detail');
+    let active = null;
+    function chip(f){
+      const b = document.createElement('button'); b.className = 'fmt-chip'; b.type = 'button';
+      b.innerHTML = '<span class="dotc ' + f.kind + '"></span>' + f.ext;
+      b.addEventListener('click', () => { active = f; show(); paintActive(); });
+      b._fmt = f; return b;
+    }
+    function paintActive(){ document.querySelectorAll('.fmt-chip').forEach(el => el.classList.toggle('active', el._fmt === active)); }
+    function show(){
+      if(!active) return;
+      detail.innerHTML =
+        '<div class="ft"><span class="name">' + active.ext + '</span><span class="fmt-badge ' + active.kind + '">' + LABEL[active.kind] + '</span></div>' +
+        '<dl><dt>しくみ</dt><dd>' + active.mech + '</dd>' +
+        '<dt>よく使う場面</dt><dd>' + active.use + '</dd>' +
+        '<dt>元に戻せるか</dt><dd>' + active.revert + '</dd></dl>';
+    }
+    function init(){
+      ['img', 'audio', 'other'].forEach(key => {
+        const row = document.getElementById('fmt-' + key);
+        FORMATS[key].forEach(f => row.appendChild(chip(f)));
+      });
+      active = FORMATS.img[2];   // 既定は JPEG（写真の非可逆＝この単元の主役）
+      show(); paintActive();
+    }
+    return { init };
+  })();
+
+  // 初期化
+  renderPresets();
+  update();
+  RT.init();
+  IMG.init();
+  AU.init();
+  FMT.init();
+})();
+</script>
+</body>
+</html>
