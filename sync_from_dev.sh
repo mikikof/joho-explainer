@@ -5,7 +5,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 DEV="/Users/mikiokofune/my-company/.company/media/webツール/情報"
 [[ -d "$DEV" ]] || { echo "ERROR: dev source not found: $DEV" >&2; exit 1; }
-for f in sampling-theorem.html color-digitization.html image-resolution.html compression.html; do
+for f in sampling-theorem.html color-digitization.html image-resolution.html compression.html os-abstraction.html; do
   cp "$DEV/$f" "$ROOT/$f"
   echo "synced: $f"
 done
