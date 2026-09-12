@@ -199,6 +199,30 @@
         </span>
       </div>
     </a>
+    <a class="card" href="instruction-execution.html">
+      <div class="thumb">
+        <svg width="140" height="60" viewBox="0 0 140 60" aria-hidden="true">
+          <rect x="6" y="8" width="54" height="44" rx="5" fill="#eef3fb" stroke="#2f55d4" stroke-width="2"/>
+          <rect x="12" y="14" width="42" height="9" rx="2" fill="#fff" stroke="#8b94a3"/>
+          <rect x="12" y="27" width="42" height="9" rx="2" fill="#fff" stroke="#8b94a3"/>
+          <rect x="12" y="40" width="42" height="9" rx="2" fill="#fbe9ec" stroke="#c8102e" stroke-width="1.6"/>
+          <path d="M62 30h14" fill="none" stroke="#8b94a3" stroke-width="2"/>
+          <path d="M72 26l6 4-6 4" fill="none" stroke="#8b94a3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <rect x="80" y="8" width="54" height="44" rx="5" fill="#fff" stroke="#33415c" stroke-width="2"/>
+          <g font-family="ui-monospace,Menlo,monospace" font-size="9" font-weight="700" fill="#33415c">
+            <text x="86" y="21">10  9</text><text x="86" y="33">11  1</text><text x="86" y="45">12  7</text>
+          </g>
+        </svg>
+      </div>
+      <div class="body">
+        <div class="tag">Fetch, Decode, Execute</div>
+        <h2>同じレジスタに読み込めば、途中結果は消える ― 命令の並びと退避</h2>
+        <p>仮想コンピュータを 1 命令ずつ実行し、レジスタと主記憶の値を追います。命令の並びを切り替えると、途中結果が入ったレジスタへ次の値を読み込んだ瞬間に消えることが見えます。レジスタが 2 つのとき、式を展開したときの並びも比べられます。</p>
+        <span class="go">ひらく
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg>
+        </span>
+      </div>
+    </a>
   </div>
 
   <footer>mikikof-lab ／ 情報 解説ツール（単一HTML・外部ライブラリ不使用）</footer>
