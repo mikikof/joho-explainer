@@ -2572,7 +2572,8 @@ main.page h2{font-size:28px !important}
     if(cur) lines.push(cur);
     /* 行頭に来てはいけない字は前の行へ送る（句読点・閉じ括弧） */
     for(var q = 1; q < lines.length; q++){
-      while(lines[q] && '。、」）'.indexOf(lines[q].charAt(0)) >= 0){
+      while(lines[q] && '。、」）'.indexOf(lines[q].charAt(0)) >= 0
+            && ctx.measureText(lines[q - 1] + lines[q].charAt(0)).width <= maxW){
         lines[q - 1] += lines[q].charAt(0);
         lines[q] = lines[q].slice(1);
       }

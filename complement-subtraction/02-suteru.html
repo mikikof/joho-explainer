@@ -1,18 +1,18 @@
 <!doctype html>
 <!--
-  情報 解説Webツール — 同じレジスタに読み込めば、途中結果は消える
-  第4回 コンピュータの構成と動作（01）。
+  情報 解説Webツール — なぜ 5 桁目を捨ててよいのか
+  第2回 補数と桁上がり（02）。
   ★ このファイルは生成物。手で直さない。
-    中身  = dist/instruction-execution/_src/01-taihi.body.html ＋ 01-taihi.mat.js
+    中身  = dist/complement-subtraction/_src/02-suteru.body.html ＋ 02-suteru.mat.js
     外枠  = _series/engine.css ＋ _series/engine.js
-    組む  = python3 _series/build_series.py instruction-execution
+    組む  = python3 _series/build_series.py complement-subtraction
   外部依存ゼロ（CDN・Webフォント・KaTeX・Chart.js 不使用）。localStorage 不使用。
 -->
 <html lang="ja">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>同じレジスタに読み込めば、途中結果は消える ｜ mikikof-lab</title>
+<title>なぜ 5 桁目を捨ててよいのか ｜ mikikof-lab</title>
 <style>
 /* ============================================================================
    情報 解説Webツール — シリーズ engine（共有の外枠）
@@ -1785,108 +1785,96 @@ main.page h2{font-size:28px !important}
 </button>
 <main class="page">
   <div class="kicker">
-    <span class="badge">第4回 コンピュータの構成と動作</span>
-    <span class="badge wk">山場</span>
-    <span>学習ノート POINT 17</span>
+    <span class="badge">第2回 補数と桁上がり</span>
+    <span class="badge wk">深掘り</span>
+    <span>16 で一周する</span>
   </div>
 
-  <h1>同じレジスタに読み込めば、​<span class="hi">途中結果は消える</span></h1>
-  <p class="lead">命令の意味は同じなのに、<span class="mk">並べる順で答えが変わります</span>。</p>
+  <h1>なぜ 5 桁目を​<span class="hi">捨ててよい</span>のか</h1>
+  <p class="lead">補数を足すと、<span class="mk">16 を余分に足しています</span>。その 16 が 5&nbsp;桁目です。</p>
 
-  <div class="figbox" id="fig-main">
+  <div class="figbox" id="fig-naze">
     <div class="zoomrow">
-      <button class="fig-zoom" type="button" data-fig="fig-main"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>拡大</button>
+      <button class="fig-zoom" type="button" data-fig="fig-naze"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>拡大して見る</button>
     </div>
 
     <div class="panel stagebar">
       <div class="qrow">
-        <button class="qbtn qstage active" type="button" data-stage="1"><span class="n">1</span>1 命令ずつ</button>
-        <button class="qbtn qstage" type="button" data-stage="2"><span class="n">2</span>並べて比べる</button>
-        <button class="qbtn qstage" type="button" data-stage="3"><span class="n">3</span>13 番地の推移</button>
-        <button class="qbtn qstage" type="button" data-stage="4"><span class="n">4</span>プログラム</button>
+        <button class="qbtn qstage active" type="button" data-stage="1"><span class="n">1</span>足すと 1 0000</button>
+        <button class="qbtn qstage" type="button" data-stage="2"><span class="n">2</span>16 だけ多い</button>
+        <button class="qbtn qstage" type="button" data-stage="3"><span class="n">3</span>一周する文字盤</button>
       </div>
     </div>
 
     <div id="banner" class="banner ok"></div>
 
     <div id="cbox" class="canvas-box ok">
-      <canvas id="cv" role="img" aria-label="段階で入れ替わる図。1 命令ずつでは、レジスタと主記憶の 10 から 13 番地を並べ、いま実行している命令と値の動きを矢印で示す。並べて比べるでは、原本の並びと退避を抜いた並びを同じ手数で同時に走らせ、レジスタの値が食い違う瞬間を示す。13 番地の推移では、4 つの並びについて 13 番地に入る値の変化を横に並べる。プログラムでは 4 つの命令列を並べ、違う行を色分けして示す。番地の箱をタップすると、その命令の手へ移る。"></canvas>
+      <canvas id="cv" role="img" aria-label="段階で入れ替わる図。足すと 1 0000 では、b の帯と補数の帯を縦に積み、合わせるとちょうど 5 桁目に 1 が立つようすを示す。16 だけ多いでは、0 から 31 までの数直線の上に、a の位置から補数のぶん進んだ位置を取り、そこが a 引く b より 16 だけ右にあることを示す。一周する文字盤では、16 の目盛りを持つ輪の上で、b だけ戻る道と 16 引く b だけ進む道が同じ場所に着くようすを描く。目盛りをタップすると数が変わります。"></canvas>
     </div>
 
     <div class="panel" id="ctlpanel">
-      <div class="qrow" id="row-play">
-        <span class="qcap"><svg class="lbi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="6 4 20 12 6 20 6 4"/></svg>動かす</span>
-        <button class="qbtn play" type="button" id="st-play"><span class="n">▶</span>自動で進む</button>
-        <button class="qbtn" type="button" id="st-prev">←</button>
-        <button class="qbtn" type="button" id="st-next">→</button>
-        <button class="qbtn" type="button" id="st-reset">最初から</button>
+      <div class="ctl-row" id="row-b2">
+        <label class="sl" for="b2"><svg class="lbi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/></svg>引く数 b</label>
+        <input id="b2" type="range" min="1" max="15" step="1" value="3" aria-label="引く数 b">
+        <span class="sl-out" id="b2val">3</span>
       </div>
-      <div class="ctl-row" id="row-step">
-        <label class="sl" for="stp"><svg class="lbi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg>命令を進める</label>
-        <input id="stp" type="range" min="0" max="7" step="1" value="3" aria-label="命令を進める">
-        <span class="sl-out"><span id="stpval">3</span>/<span id="stpmax">7</span></span>
+      <div class="ctl-row" id="row-a2">
+        <label class="sl" for="a2"><svg class="lbi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 18L12 6l8 12"/><path d="M8 14h8"/></svg>引かれる数 a</label>
+        <input id="a2" type="range" min="0" max="15" step="1" value="7" aria-label="引かれる数 a">
+        <span class="sl-out" id="a2val">7</span>
       </div>
-      <div class="qrow" id="row-prog">
-        <span class="qcap"><svg class="lbi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg>並び</span>
-        <button class="qbtn active" type="button" data-p="orig">原本（退避あり）</button>
-        <button class="qbtn" type="button" data-p="nosave">退避を抜く</button>
-        <button class="qbtn" type="button" data-p="expand">式を展開</button>
-        <button class="qbtn" type="button" data-p="tworeg">レジスタ 2 つ</button>
+      <div class="qrow" id="row-dial">
+        <span class="qcap"><svg class="lbi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>何で一周するか</span>
+        <button class="qbtn active" type="button" data-d="16">4 つの桁（16）</button>
+        <button class="qbtn" type="button" data-d="12">時計（12）</button>
       </div>
-      <div class="switches" id="sw-wrap">
-        <label class="sw" id="sw-beat"><input type="checkbox" id="t-beat" checked><span class="track"></span>取り出し・解読・実行を分けて見る</label>
+      <div class="qrow" id="row-way">
+        <span class="qcap"><svg class="lbi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h16M9 7l-5 5 5 5"/></svg>どちらの道で</span>
+        <button class="qbtn active" type="button" data-w="back">b だけ戻る</button>
+        <button class="qbtn" type="button" data-w="fwd">補数だけ進む</button>
       </div>
     </div>
 
-    <div class="legend" id="leg">
-      <span><i class="sw-key" style="background:var(--ok)"></i>いま動いた値</span>
-      <span><i class="sw-key" style="background:var(--warn)"></i>上書きで消えた値</span>
-      <span><i class="sw-key" style="background:var(--line-2)"></i>まだ空</span>
-    </div>
+    <div class="legend" id="leg"></div>
 
     <div class="metrics" id="mets"></div>
     <p class="cap" id="stage-cap"></p>
   </div>
 
   <div class="steps" id="stages">
-    <div class="step on" data-stage="1"><span class="sno">1</span><div class="sbody"><div class="smath">1 命令ずつ</div></div></div>
-    <div class="step" data-stage="2"><span class="sno">2</span><div class="sbody"><div class="smath">並べて比べる</div></div></div>
-    <div class="step" data-stage="3"><span class="sno">3</span><div class="sbody"><div class="smath">13 番地の推移</div></div></div>
-    <div class="step" data-stage="4"><span class="sno">4</span><div class="sbody"><div class="smath">プログラム</div></div></div>
+    <div class="step on" data-stage="1"><span class="sno">1</span><div class="sbody"><div class="smath">足すと 1 0000</div><div class="snote">b と b の補数を足すと、ちょうど 5 桁目に 1 が立ちます。これが補数の決め方そのものです。</div></div></div>
+    <div class="step" data-stage="2"><span class="sno">2</span><div class="sbody"><div class="smath">16 だけ多い</div><div class="snote">a に補数を足した数は、a から b を引いた数より 16 だけ大きくなります。その 16 が 5 桁目の 1 です。</div></div></div>
+    <div class="step" data-stage="3"><span class="sno">3</span><div class="sbody"><div class="smath">一周する文字盤</div><div class="snote">16 で一周する輪の上では、b だけ戻るのと、16 から b を引いたぶん進むのは、同じ場所に着きます。</div></div></div>
   </div>
 
-  <details class="glossary" id="more">
-    <summary>くわしく読む — 退避の一手、13 番地の二役、用語</summary>
-    <div style="padding:4px 20px 20px">
-      <p>レジスタは計算の作業台です。<b>READ は、作業台の中身を捨てて入れ直す命令</b>です。1 ＋ 7 の答えがレジスタに入っている状態で 9 を読み込むと、<span class="mk">8 は残りません</span>。だから原本の並びでは、先に 13 番地へ書き出してから 9 を読み込みます。<button class="hk-chip" type="button" data-hk="uwagaki"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.5a2.4 2.4 0 1 1 3.3 2.2c-.6.3-.9.7-.9 1.3v.5M12 16.5v.01"/></svg>消える瞬間を見る</button></p>
+  <h2><span class="bar"></span>補数を足すと、16 を余分に足している</h2>
 
-      <p>退避の 1 行を抜くと、5 番地の減算のときに <span class="mk p">13 番地はまだ空</span>です。引く相手がないので、レジスタ A の 9 がそのまま残り、13 番地には 9 が書き込まれます。<b>命令の意味はどれも正しいのに、答えだけが変わります。</b><button class="hk-chip" type="button" data-hk="karappo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.5a2.4 2.4 0 1 1 3.3 2.2c-.6.3-.9.7-.9 1.3v.5M12 16.5v.01"/></svg>空の番地を引くと</button></p>
+  <p>b の補数は、b に足すと桁が 1&nbsp;つ上がる最も小さい数です。4&nbsp;ビットなら、b と補数を足すとちょうど <b>1 0000</b>、10 進数の 16 になります。<span class="mk">つまり補数は 16 から b を引いた数です。</span><button class="hk-chip" type="button" data-hk="teigi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.5a2.4 2.4 0 1 1 3.3 2.2c-.6.3-.9.7-.9 1.3v.5M12 16.5v.01"/></svg>反転して 1 を足すとなぜ 16 − b</button></p>
 
-      <p>レジスタが 2 つあるときは、書き出す代わりに<b>空いているほうへ読み込み</b>ます。どちらの場合も見ているのは同じ一点で、いま値がどこにあるか、です。<button class="hk-chip" type="button" data-hk="futatsu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.5a2.4 2.4 0 1 1 3.3 2.2c-.6.3-.9.7-.9 1.3v.5M12 16.5v.01"/></svg>2 つならどう読みますか</button>式のほうを変えれば、退避の要らない並びも作れます。<button class="hk-chip" type="button" data-hk="tenkai"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.5a2.4 2.4 0 1 1 3.3 2.2c-.6.3-.9.7-.9 1.3v.5M12 16.5v.01"/></svg>退避なしで済む書き方</button></p>
+  <p>そこで a に補数を足すと、a に「16 から b を引いたもの」を足すことになります。並べ替えると <b>(a − b) に 16 を足した数</b>です。<span class="mk">求めたい答えより 16 だけ大きい</span>わけです。16 は 2&nbsp;進数で 1 0000、つまり 5&nbsp;桁目の 1 にあたります。だから 5&nbsp;桁目を捨てると、16 が消えて a − b が残ります。<button class="hk-chip" type="button" data-hk="kazu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.5a2.4 2.4 0 1 1 3.3 2.2c-.6.3-.9.7-.9 1.3v.5M12 16.5v.01"/></svg>数直線で見るとどうなりますか</button></p>
 
-      <div class="pointbox">
-        <p class="ph">POINT</p>
-        <dl>
-          <dt>READ は上書き</dt><dd>レジスタの中身を捨てて、読み込んだ値を入れます。前の値は残りません。</dd>
-          <dt>退避の一手</dt><dd>途中結果を残したいときは、先に <b>WRITE</b> で主記憶へ書き出します。</dd>
-          <dt>13 番地の二役</dt><dd>途中結果の置き場として一度使われ、そのあと答えで上書きされます。</dd>
-          <dt>レジスタが 2 つ</dt><dd>書き出す代わりに、<b>空いているほう</b>へ読み込めば足ります。</dd>
-          <dt>式の形</dt><dd><span class="formula">X −（Y ＋ Z）　→　X − Y − Z</span> と変えれば、退避は要りません。</dd>
-        </dl>
-      </div>
+  <h2><span class="bar"></span>身のまわり：時計の文字盤</h2>
 
+  <p>時計は 12 で一周します。7&nbsp;時の 3&nbsp;時間前を知りたいとき、<b>3 時間戻す代わりに 9 時間進めて</b>も同じ 4&nbsp;時に着きます。9 は 12 から 3 を引いた数で、時計にとっての補数です。<span class="mk">12 を超えた分は読まない、というのが「桁上がりを無視する」にあたります。</span><button class="hk-chip" type="button" data-hk="tokei"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.5a2.4 2.4 0 1 1 3.3 2.2c-.6.3-.9.7-.9 1.3v.5M12 16.5v.01"/></svg>時計と 4 ビットの違いは</button></p>
+
+  <p>コンピュータが実際に使う桁数でも同じです。8&nbsp;ビットなら 256 で一周し、9&nbsp;桁目を捨てます。<b>一周する数がいくつであっても、仕組みは変わりません。</b></p>
+
+  <details class="glossary">
+    <summary>用語のおさらい</summary>
+    <div style="padding:2px 18px 18px">
       <dl class="gloss">
-        <dt>プログラムカウンタ<span class="en">program counter</span></dt><dd>次に実行すべき命令の番地を記憶しているものです。</dd>
-        <dt>命令レジスタ</dt><dd>主記憶装置から取り出した命令を格納します。</dd>
-        <dt>レジスタ<span class="en">register</span></dt><dd>CPU の中で値を一時的に置く場所。数が少なく、次の値を読み込むと前の値は残りません。</dd>
-        <dt>プログラム格納方式</dt><dd>主記憶装置のプログラムから命令を順に取り出し、解読して実行する仕組みです。</dd>
+        <dt>補数<span class="en">complement</span></dt><dd>ある数に足すと桁が 1 つ上がる、最も小さい数。4 ビットでは 16 から b を引いた数にあたります。</dd>
+        <dt>桁上がり</dt><dd>足し算で上の桁へ 1 が移ること。5 桁目に出た 1 は、余分に足した 16 です。</dd>
+        <dt>演算回路</dt><dd>計算をする回路。減算を補数の加算で済ませると、減算用の回路を用意しなくてよくなります。</dd>
       </dl>
     </div>
   </details>
+
+  <p class="foot">補数を足すと 16 を余分に足しています。5 桁目がその 16 です。</p>
   <nav class="sernav" aria-label="ページ送り">
-    <a class="sn-prev" href="00-hajimete.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>前：イチから図解：命令はどう実行されるか</a>
+    <a class="sn-prev" href="01-junban.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>前：1 を足す前に進むと、答えが 1 小さい</a>
     <a class="sn-up" href="index.html">この回の一覧へ</a>
-    <a class="sn-next" href="02-uwagaki.html">次：READ は上書きである<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+    <span></span>
   </nav>
 </main>
 <div class="hk-ov" id="hk-ov" role="dialog" aria-modal="true" aria-label="補足">
@@ -2510,28 +2498,17 @@ main.page h2{font-size:28px !important}
 
 </script>
 <script>
-/* ===================== MATERIAL — 同じレジスタに読み込めば、途中結果は消える ==
-   数理の正本 = specs/instruction-execution.spec.md（非公開）。独立検算済み（python）。
-   原本 = 学習ノート POINT 17 実習4（問題 p.41）／3 章 章末5（問題 p.45）。
+/* ===================== MATERIAL — なぜ 5 桁目を捨ててよいのか ================
+   3 つの場面を 1 枚の canvas で切り替える。
 
-     主記憶 10 番地 X ＝ 9／11 番地 Y ＝ 1／12 番地 Z ＝ 7／13 番地は空。
-     ① 原本（退避あり）   → 13 番地 = 1   A: 1→8→8→9→1→1
-     ② 退避を抜く         → 13 番地 = 9   A: 1→8→9→9→9
-     ③ 式を展開           → 13 番地 = 1   A: 9→8→1→1
-     ④ レジスタ 2 つ      → 13 番地 = 17  A: 9→9→10→10→17→17 / B: −→1→1→7→7
-     4 通りとも原本の解答と一致することを、仮想機械を書いて確かめた。
+   数の正本 = specs/complement-subtraction.spec.md（非公開）。独立検算済み（python）。
+     b + 補数(b) = 16（1〜15 の全部で確認）。補数 = 16 − b。
+     a + 補数(b) = (a − b) + 16。16 が 5 桁目なので、捨てると a − b。
+     16×15 = 240 通りの総当たりで、下位 4 桁が (a − b) mod 16 に一致することを確認した。
+   原本 = 学習ノート POINT 15 ／ プリント 問二の模範解答。
 
-   ★ 空の番地を引いたときの言い方。
-     内部では 0 として計算するが、**画面には「引く相手がありません」と書く**。
-     プリントの生成器も同じ語で、`BAD_RUN.mem[13] !== MEM0[10]` の assert で
-     「結果は X のまま」を固定している。0 を引く、という未明文の約束を教えない。
-
-   作り
-   ------------------------------------------------------------------
-     ① 1 命令ずつ      … レジスタと主記憶、いま実行している命令、3 拍
-     ② 並べて比べる    … 原本と退避なしを同じ手数で同時に走らせる（この回の芯）
-     ③ 13 番地の推移   … 4 通りの 13 番地を横に並べ、同時に動かす（二役が見える）
-     ④ プログラム      … 4 つの命令列を並べ、違う行を色分けする
+   ★ 時計の比喩はプリントの解答と同じ言い方にする。
+     「3 時間戻す代わりに 9 時間進め、12 を超えた分を読まない」。
    ============================================================================ */
 (function(){
   "use strict";
@@ -2542,23 +2519,21 @@ main.page h2{font-size:28px !important}
   var W = 0, H = 0;
 
   var el = {
-    stp:document.getElementById('stp'), stpval:document.getElementById('stpval'),
-    stpmax:document.getElementById('stpmax'),
     banner:document.getElementById('banner'), cbox:document.getElementById('cbox'),
     cap:document.getElementById('stage-cap'), mets:document.getElementById('mets'),
-    leg:document.getElementById('leg'), beat:document.getElementById('t-beat'),
-    rowPlay:document.getElementById('row-play'), rowStep:document.getElementById('row-step'),
-    rowProg:document.getElementById('row-prog'), swBeat:document.getElementById('sw-beat')
+    leg:document.getElementById('leg'),
+    a2:document.getElementById('a2'), a2val:document.getElementById('a2val'),
+    b2:document.getElementById('b2'), b2val:document.getElementById('b2val'),
+    rowA:document.getElementById('row-a2'), rowB:document.getElementById('row-b2'),
+    rowDial:document.getElementById('row-dial'), rowWay:document.getElementById('row-way')
   };
 
   function MF(px){ return Math.round(px * (window.ZOOM || 1) * 10) / 10; }
-  /* ★ 図の中の文字は CSS では変えられない。canvas に JS が直接描いている。 */
   function F(px, w){ return (w || '600') + ' '
     + MF(Math.max(15, Math.round(px * 1.35))) + 'px ' + window.JPFONT; }
-  function FM(px){ return '600 ' + MF(Math.max(15, Math.round(px * 1.35)))
+  function FM(px){ return '700 ' + MF(Math.max(15, Math.round(px * 1.35)))
     + 'px ' + window.MONOFONT; }
 
-  /* 器の幅に収めて描く。収まらなければ級数を下げ、それでも無理なら文字単位で折る。 */
   function drawFit(t, px, x, y, align, maxW, w, lh){
     var p = px, wt = w || '700';
     ctx.textAlign = align;
@@ -2576,561 +2551,329 @@ main.page h2{font-size:28px !important}
       else { cur += c1; }
     }
     if(cur) lines.push(cur);
+    /* ★ 行頭の約物を前の行へ繰り上げるとき、**繰り上げた結果その行が器幅を
+       超えないか**を見る。見ないと、右揃えのラベルで超えた分がそのまま左へ出る
+       （820px で「1 を足す（補数）」が −10px まで出ていた）。 */
     for(var q = 1; q < lines.length; q++){
       while(lines[q] && '。、」）'.indexOf(lines[q].charAt(0)) >= 0
             && ctx.measureText(lines[q - 1] + lines[q].charAt(0)).width <= maxW){
-        lines[q - 1] += lines[q].charAt(0);
-        lines[q] = lines[q].slice(1);
+        lines[q - 1] += lines[q].charAt(0); lines[q] = lines[q].slice(1);
       }
     }
     for(var r = 0; r < lines.length; r++) ctx.fillText(lines[r], x, y + r * (lh || 19));
     return lines.length;
   }
-  function monoPx(lines, px, maxW){
-    var p = px;
-    while(p > 10){
-      ctx.font = FM(p);
-      var wmax = 0;
-      for(var k = 0; k < lines.length; k++){
-        var q = ctx.measureText(lines[k]).width; if(q > wmax) wmax = q;
-      }
-      if(wmax <= maxW) return p;
-      p -= 0.5;
-    }
-    return 10;
-  }
 
   /* ===== 数理 ===== */
-  var MEM0 = {10:9, 11:1, 12:7, 13:null};
-  var ADRS = [10, 11, 12, 13];
-  var ANAME = {10:'X', 11:'Y', 12:'Z', 13:''};
+  var M = 16;
+  function b4(x, w){ var s = (x >>> 0).toString(2); w = w || 4;
+    while(s.length < w) s = '0' + s; return s; }
+  function comp(x){ return (M - x) & (M - 1) || M - x; }
 
-  var PROGS = {
-    orig:   {label:'原本（退避あり）', regs:['A'], aim:'X −（Y ＋ Z）', goal:1, code:[
-      {t:'READ',  r:'A', a:11, s:'READ A,(11)'},
-      {t:'ADDM',  r:'A', a:12, s:'ADD A,(12)'},
-      {t:'WRITE', r:'A', a:13, s:'WRITE (13),A'},
-      {t:'READ',  r:'A', a:10, s:'READ A,(10)'},
-      {t:'SUBM',  r:'A', a:13, s:'SUB A,(13)'},
-      {t:'WRITE', r:'A', a:13, s:'WRITE (13),A'},
-      {t:'STOP',  s:'STOP'}]},
-    nosave: {label:'退避を抜いた並び', regs:['A'], aim:'X −（Y ＋ Z）', goal:1, code:[
-      {t:'READ',  r:'A', a:11, s:'READ A,(11)'},
-      {t:'ADDM',  r:'A', a:12, s:'ADD A,(12)'},
-      {t:'READ',  r:'A', a:10, s:'READ A,(10)'},
-      {t:'SUBM',  r:'A', a:13, s:'SUB A,(13)'},
-      {t:'WRITE', r:'A', a:13, s:'WRITE (13),A'},
-      {t:'STOP',  s:'STOP'}]},
-    expand: {label:'式を展開した並び', regs:['A'], aim:'X − Y − Z', goal:1, code:[
-      {t:'READ',  r:'A', a:10, s:'READ A,(10)'},
-      {t:'SUBM',  r:'A', a:11, s:'SUB A,(11)'},
-      {t:'SUBM',  r:'A', a:12, s:'SUB A,(12)'},
-      {t:'WRITE', r:'A', a:13, s:'WRITE (13),A'},
-      {t:'STOP',  s:'STOP'}]},
-    tworeg: {label:'レジスタ 2 つ', regs:['A','B'], aim:'X ＋ Y ＋ Z', goal:17, code:[
-      {t:'READ',  r:'A', a:10, s:'READ A,(10)'},
-      {t:'READ',  r:'B', a:11, s:'READ B,(11)'},
-      {t:'ADDR',  r:'A', r2:'B', s:'ADD A,B'},
-      {t:'READ',  r:'B', a:12, s:'READ B,(12)'},
-      {t:'ADDR',  r:'A', r2:'B', s:'ADD A,B'},
-      {t:'WRITE', r:'A', a:13, s:'WRITE (13),A'},
-      {t:'STOP',  s:'STOP'}]}
-  };
-  var ORDER = ['orig', 'nosave', 'expand', 'tworeg'];
-
-  var stage = 1, progKey = 'orig';
-
-  /* 1 命令ずつ実行し、各時点の状態を並べて返す。
-     ★ 空の番地は 0 として計算する。画面の言葉は「引く相手がない」で通す。 */
-  function runAll(key){
-    var P = PROGS[key], mem = {}, reg = {}, out = [];
-    ADRS.forEach(function(a){ mem[a] = MEM0[a]; });
-    P.regs.forEach(function(r){ reg[r] = null; });
-    out.push({mem:copy(mem), reg:copy(reg), i:-1, lost:null, emptyRead:false});
-    for(var k = 0; k < P.code.length; k++){
-      var ins = P.code[k], lost = null, emptyRead = false;
-      if(ins.t === 'READ'){
-        if(reg[ins.r] !== null) lost = reg[ins.r];     /* 上書きで消える値 */
-        reg[ins.r] = val(mem[ins.a]);
-      } else if(ins.t === 'WRITE'){
-        mem[ins.a] = reg[ins.r];
-      } else if(ins.t === 'ADDM'){
-        if(mem[ins.a] === null) emptyRead = true;
-        reg[ins.r] = reg[ins.r] + val(mem[ins.a]);
-      } else if(ins.t === 'SUBM'){
-        if(mem[ins.a] === null) emptyRead = true;
-        reg[ins.r] = reg[ins.r] - val(mem[ins.a]);
-      } else if(ins.t === 'ADDR'){
-        reg[ins.r] = reg[ins.r] + reg[ins.r2];
-      }
-      out.push({mem:copy(mem), reg:copy(reg), i:k, lost:lost, emptyRead:emptyRead});
-    }
-    return out;
-  }
-  function val(v){ return (v === null) ? 0 : v; }
-  function copy(o){ var q = {}; for(var k in o) if(o.hasOwnProperty(k)) q[k] = o[k]; return q; }
-  function show(v){ return (v === null) ? '空' : String(v); }
-
-  var RUNS = {};
-  ORDER.forEach(function(k){ RUNS[k] = runAll(k); });
-
-  function maxStep(){
-    if(stage === 1 || stage === 4) return PROGS[progKey].code.length;
-    var m = 0;
-    ORDER.forEach(function(k){ m = Math.max(m, PROGS[k].code.length); });
-    return m;
-  }
-  function stp(){ return Math.max(0, Math.min(maxStep(), parseInt(el.stp.value, 10))); }
-  function at(key, n){ var R = RUNS[key]; return R[Math.min(n, R.length - 1)]; }
-
+  var stage = 1, dial = 16, way = 'back';
   var HIT = [];
-  var TIGHT = 1;
 
-  /* ===== 段階① 1 命令ずつ ===== */
+  function av(){ return Math.max(0, Math.min(15, parseInt(el.a2.value, 10))); }
+  function bv(){ return Math.max(1, Math.min(15, parseInt(el.b2.value, 10))); }
+
+  /* ===== 場面① b と補数を積むと 1 0000 ===== */
   function drawStage1(){
-    var c = ctx, P = PROGS[progKey], n = stp(), st = at(progKey, n);
-    HIT = [];
-    var ins = (st.i >= 0) ? P.code[st.i] : null;
-    c.fillStyle = K('--k-inksoft');
-    var ln = drawFit(ins ? (st.i + 1) + ' 番地　' + ins.s : 'まだ 1 つも実行していません',
-                     13, W / 2, 22, 'center', W - 16, '700');
-    var top = 54 + (ln - 1) * 19;
+    var b = bv(), c = M - b;
+    ctx.fillStyle = K('--k-deep');
+    var h1 = drawFit('b と補数を足すと、ちょうど 5 桁目に 1 が立ちます',
+      13, 14, 26, 'left', W - 28, '800');
+    var top = 26 + h1 * 21;
+    var barW = Math.min(W - 60, 420), ox = (W - barW) / 2;
+    var u = barW / M, bh = 34, y = top + 16;
 
-    /* 3 拍（分けて見るスイッチが入っているときだけ） */
-    if(el.beat && el.beat.checked && ins){
-      var names = ['取り出す', '解読する', '実行する'];
-      var gx = 8, cw = Math.min(112, (W - 28 - gx * 2) / 3);
-      var ox3 = Math.round((W - (cw * 3 + gx * 2)) / 2), ch = 24;
-      for(var b = 0; b < 3; b++){
-        var xb = ox3 + b * (cw + gx);
-        c.setLineDash([]);
-        c.fillStyle = K('--k-tint'); c.fillRect(xb, top, cw, ch);
-        c.lineWidth = 1.6; c.strokeStyle = K('--k-main'); c.strokeRect(xb, top, cw, ch);
-        c.fillStyle = K('--k-ink'); c.font = F(11, '700');
-        c.textAlign = 'center'; c.textBaseline = 'middle';
-        c.fillText(names[b], xb + cw / 2, top + ch / 2);
-        c.textBaseline = 'alphabetic';
-      }
-      /* ★ このあとレジスタのラベルを top − 9 に描くので、箱の下に 34px 空ける。
-         20px にしていたときは実質 11px しか離れず、1440px の実機で
-         「レジスタ A」が 3 拍の箱の下辺に食い込んでいた。はみ出しではないので
-         図の検査は鳴らない。撮って見るまで分からない形。 */
-      top += ch + 34;
+    /* 上：b と補数を横に並べた帯 */
+    for(var i = 0; i < M; i++){
+      var isB = (i < b);
+      ctx.fillStyle = isB ? K('--k-main') : K('--k-second');
+      ctx.fillRect(ox + u * i + 0.6, y, u - 1.2, bh);
     }
+    ctx.strokeStyle = K('--k-line2'); ctx.lineWidth = 1.4;
+    ctx.strokeRect(ox, y, barW, bh);
+    ctx.fillStyle = K('--k-paper'); ctx.font = F(12, '800'); ctx.textAlign = 'center';
+    if(b >= 3) ctx.fillText('b ' + b, ox + u * b / 2, y + bh / 2 + 5);
+    if(c >= 3) ctx.fillText('補数 ' + c, ox + u * (b + c / 2), y + bh / 2 + 5);
+    HIT.push({x:ox, y:y, w:barW, h:bh, bar:1});
 
-    /* レジスタ */
-    var rw = Math.min(130, (W - 40) / (P.regs.length + 0.4));
-    var rh = Math.max(40, Math.round(48 * TIGHT));
-    var rox = Math.round((W - (rw * P.regs.length + 14 * (P.regs.length - 1))) / 2);
-    P.regs.forEach(function(r, k){
-      var x = rox + k * (rw + 14);
-      var isLost = (st.lost !== null && r === (ins && ins.r));
-      c.setLineDash([]);
-      c.fillStyle = K('--k-tint'); c.fillRect(x, top, rw, rh);
-      c.lineWidth = isLost ? 3 : 2;
-      c.strokeStyle = isLost ? K('--k-warn') : K('--k-main');
-      c.strokeRect(x, top, rw, rh);
-      c.fillStyle = K('--k-ink'); c.font = F(16, '800');
-      c.textAlign = 'center'; c.textBaseline = 'middle';
-      c.fillText(show(st.reg[r]), x + rw / 2, top + rh / 2);
-      c.textBaseline = 'alphabetic';
-      c.fillStyle = K('--k-inkfaint'); c.font = F(11.5, '700');
-      c.fillText('レジスタ ' + r, x + rw / 2, top - 9);
-    });
-    var y = top + rh + 22;
-    /* 上書きで消えた値を、レジスタの下に打ち消し線つきで残す */
-    if(st.lost !== null){
-      c.fillStyle = K('--k-warn'); c.font = F(12.5, '700'); c.textAlign = 'center';
-      var t2 = show(st.lost) + ' が消えました';
-      c.fillText(t2, W / 2, y);
-      y += 22;
-    }
+    ctx.fillStyle = K('--k-inkfaint'); ctx.font = F(11, '700');
+    ctx.fillText('0', ox, y + bh + 16);
+    ctx.fillText('16', ox + barW, y + bh + 16);
 
-    /* 主記憶 10〜13 */
-    var n4 = ADRS.length, gap = 10;
-    var bw = Math.max(52, Math.min(124, Math.floor((W - 24 - gap * (n4 - 1)) / n4)));
-    var bh = Math.max(38, Math.round(46 * TIGHT));
-    var ox = Math.round((W - (bw * n4 + gap * (n4 - 1))) / 2);
-    for(var k2 = 0; k2 < n4; k2++){
-      var a = ADRS[k2], x2 = ox + k2 * (bw + gap);
-      var touched = !!(ins && ins.a === a);
-      HIT.push({x:x2, y:y, w:bw, h:bh});
-      c.setLineDash([]);
-      c.fillStyle = (st.mem[a] === null) ? K('--k-dim') : K('--k-paper');
-      c.fillRect(x2, y, bw, bh);
-      c.lineWidth = touched ? 2.8 : 1.4;
-      c.strokeStyle = touched ? K('--k-ok') : K('--k-line2');
-      c.strokeRect(x2, y, bw, bh);
-      c.fillStyle = (st.mem[a] === null) ? K('--k-dimink') : K('--k-ink');
-      c.font = F(14, '700'); c.textAlign = 'center'; c.textBaseline = 'middle';
-      c.fillText(show(st.mem[a]), x2 + bw / 2, y + bh / 2);
-      c.textBaseline = 'alphabetic';
-      /* ★ 番地のラベルも器に収める。390px では箱が 70px ほどしかないのに
-         「10 番地（X）」は約 95px あり、隣のラベルと接して
-         「10 番地（X）11 番地（Y）12 番地（Z）」と 1 つの塊に見えていた。
-         はみ出しではなく**隣どうしの接触**なので、図の検査では鳴らない。
-         箱の幅に入らなければ短い表記へ落とし、そのうえで drawFit に通す。 */
-      c.fillStyle = K('--k-inkfaint');
-      var lab2 = a + ' 番地' + (ANAME[a] ? '（' + ANAME[a] + '）' : '');
-      ctx.font = F(11, '700');
-      if(ctx.measureText(lab2).width > bw + gap - 6){
-        lab2 = a + (ANAME[a] ? '（' + ANAME[a] + '）' : ' 番地');
-      }
-      drawFit(lab2, 11, x2 + bw / 2, y - 9, 'center', bw + gap - 6, '700', 13);
+    /* 下：5 桁の箱 */
+    var by = y + bh + 34;
+    var bw = Math.min(42, (W - 60) / 5), hh = 36;
+    var tot = bw * 5 + 5 * 4, bx = (W - tot) / 2;
+    var s = b4(M, 5);
+    for(var j = 0; j < 5; j++){
+      var on = s.charAt(j) === '1', top5 = (j === 0);
+      var xx = bx + (bw + 5) * j;
+      ctx.fillStyle = top5 ? K('--k-warn') : (on ? K('--k-tint') : K('--k-paper'));
+      window.roundRect(ctx, xx, by, bw, hh, 4); ctx.fill();
+      ctx.lineWidth = 1.6;
+      ctx.strokeStyle = top5 ? K('--k-warn') : (on ? K('--k-tintbd') : K('--k-line2'));
+      window.roundRect(ctx, xx, by, bw, hh, 4); ctx.stroke();
+      ctx.fillStyle = top5 ? K('--k-paper') : (on ? K('--k-main') : K('--k-inksoft'));
+      ctx.font = FM(13); ctx.textAlign = 'center';
+      ctx.fillText(s.charAt(j), xx + bw / 2, by + hh / 2 + 5);
     }
+    ctx.fillStyle = K('--k-deep');
+    drawFit(b + ' ＋ ' + c + ' ＝ 16。これが補数の決め方です',
+      12, W / 2, by + hh + 24, 'center', W - 28, '800');
     if(window.__setHit) window.__setHit(HIT);
-    var y2 = y + bh + 28;
-    c.fillStyle = st.emptyRead ? K('--k-warn') : K('--k-deep');
-    var l2 = drawFit(st.emptyRead
-      ? '13 番地はまだ空なので、引く相手がありません'
-      : (ins ? capOf(P, st, ins) : '主記憶に 9・1・7 が入っています'),
-      12.5, 14, y2, 'left', W - 24, '700');
-    return y2 + 18 + (l2 - 1) * 19;
-  }
-  function capOf(P, st, ins){
-    if(ins.t === 'READ')  return ins.a + ' 番地の ' + show(st.mem[ins.a]) + ' をレジスタ ' + ins.r + ' へ読み込みました';
-    if(ins.t === 'WRITE') return 'レジスタ ' + ins.r + ' の ' + show(st.reg[ins.r]) + ' を ' + ins.a + ' 番地へ書き込みました';
-    if(ins.t === 'ADDM')  return ins.a + ' 番地の値を足して、レジスタ ' + ins.r + ' は ' + show(st.reg[ins.r]) + ' になりました';
-    if(ins.t === 'SUBM')  return ins.a + ' 番地の値を引いて、レジスタ ' + ins.r + ' は ' + show(st.reg[ins.r]) + ' になりました';
-    if(ins.t === 'ADDR')  return 'レジスタ ' + ins.r2 + ' を足して、レジスタ ' + ins.r + ' は ' + show(st.reg[ins.r]) + ' になりました';
-    return '終わりました';
   }
 
-  /* ===== 段階② 原本と退避なしを並べる（この回の芯） ===== */
+  /* ===== 場面② 0〜31 の数直線。a から補数ぶん進む ===== */
   function drawStage2(){
-    var c = ctx, n = stp();
-    HIT = [];
-    c.fillStyle = K('--k-inksoft');
-    var ln = drawFit('同じ手数で、2 つの並びを同時に走らせます',
-                     13, W / 2, 22, 'center', W - 16, '700');
-    var y = 48 + (ln - 1) * 19, pad = 14;
-    var labW = W >= 640 ? 178 : 0;
-    var labMax = labW ? labW - 14 : W - pad * 2;
-    ['orig', 'nosave'].forEach(function(key){
-      var P = PROGS[key], st = at(key, n);
-      var ins = (st.i >= 0) ? P.code[st.i] : null;
-      var okNow = (key === 'orig');
-      c.fillStyle = okNow ? K('--k-ok') : K('--k-warn');
-      drawFit(P.label, 12.5, pad, y + 12, 'left', labMax, '700');
-      c.fillStyle = K('--k-inkfaint');
-      drawFit(ins ? ins.s : 'はじめ', 11.5, pad, y + 29, 'left', labMax, '600');
-      var ox = labW ? (pad + labW) : pad;
-      var yy = labW ? y : y + 38;
-      /* レジスタ A と 13 番地を横に並べる */
-      var bw = Math.min(112, (W - ox - pad - 12) / 2), bh = Math.max(30, Math.round(38 * TIGHT));
-      var pairs = [['レジスタ A', st.reg.A], ['13 番地', st.mem[13]]];
-      pairs.forEach(function(p, k){
-        var x = ox + k * (bw + 12);
-        HIT.push({x:x, y:yy, w:bw, h:bh});
-        c.setLineDash([]);
-        c.fillStyle = (p[1] === null) ? K('--k-dim') : K('--k-tint');
-        c.fillRect(x, yy, bw, bh);
-        c.lineWidth = 2;
-        c.strokeStyle = (st.lost !== null && k === 0) ? K('--k-warn')
-                      : (okNow ? K('--k-main') : K('--k-warn'));
-        c.strokeRect(x, yy, bw, bh);
-        c.fillStyle = (p[1] === null) ? K('--k-dimink') : K('--k-ink');
-        c.font = F(14, '800'); c.textAlign = 'center'; c.textBaseline = 'middle';
-        c.fillText(show(p[1]), x + bw / 2, yy + bh / 2);
-        c.textBaseline = 'alphabetic';
-        c.fillStyle = K('--k-inkfaint'); c.font = F(11, '700');
-        c.fillText(p[0], x + bw / 2, yy - 7);
-      });
-      var yv = yy + bh + 16;
-      c.fillStyle = st.lost !== null ? K('--k-warn') : K('--k-inkfaint');
-      drawFit(st.lost !== null ? show(st.lost) + ' が上書きで消えました'
-                               : (st.emptyRead ? '13 番地が空なので、引く相手がありません' : ''),
-              11.5, ox, yv, 'left', W - ox - pad, '700');
-      y = yv + 20;
-    });
+    var a = av(), b = bv(), c = M - b, sum = a + c, ans = sum & (M - 1);
+    var carry = sum >= M;
+    ctx.fillStyle = K('--k-deep');
+    var h1 = drawFit('a に補数を足すと、a − b より 16 だけ右へ行きます',
+      13, 14, 26, 'left', W - 28, '800');
+    var top = 26 + h1 * 21;
+    var lx = 24, rx = W - 24, span = rx - lx, u = span / 32;
+    var y = top + 54;
+
+    ctx.strokeStyle = K('--k-line2'); ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(lx, y); ctx.lineTo(rx, y); ctx.stroke();
+    for(var i = 0; i <= 32; i += 4){
+      ctx.strokeStyle = (i === 16) ? K('--k-warn') : K('--k-line2');
+      ctx.lineWidth = (i === 16) ? 2 : 1.2;
+      ctx.beginPath(); ctx.moveTo(lx + u * i, y - 5); ctx.lineTo(lx + u * i, y + 5); ctx.stroke();
+      ctx.fillStyle = (i === 16) ? K('--k-warn') : K('--k-inkfaint');
+      ctx.font = F(11, '700'); ctx.textAlign = 'center';
+      ctx.fillText(String(i), lx + u * i, y + 20);
+    }
+    /* a から補数ぶん進む矢印 */
+    ctx.strokeStyle = K('--k-ok'); ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(lx + u * a, y - 22); ctx.lineTo(lx + u * sum - 6, y - 22); ctx.stroke();
+    ctx.fillStyle = K('--k-ok'); window.arrowHead(ctx, lx + u * sum, y - 22, 'right');
+    ctx.font = F(11.5, '800'); ctx.textAlign = 'center';
+    drawFit('補数 ' + c + ' だけ進む', 11.5, lx + u * (a + sum) / 2, y - 30,
+      'center', Math.max(70, u * c), '800', 13);
+    /* a − b の位置 */
+    var target = a - b;
+    if(target >= 0){
+      ctx.strokeStyle = K('--k-main'); ctx.lineWidth = 2;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath(); ctx.moveTo(lx + u * target, y + 28); ctx.lineTo(lx + u * target, y - 30); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = K('--k-main'); ctx.font = F(11.5, '800'); ctx.textAlign = 'center';
+      ctx.fillText('a − b ＝ ' + target, lx + u * target, y + 42);
+    }
+    /* 16 のずれ */
+    if(carry){
+      ctx.strokeStyle = K('--k-warn'); ctx.lineWidth = 2.4;
+      ctx.beginPath(); ctx.moveTo(lx + u * target, y + 58); ctx.lineTo(lx + u * sum - 6, y + 58); ctx.stroke();
+      ctx.fillStyle = K('--k-warn'); window.arrowHead(ctx, lx + u * sum, y + 58, 'right');
+      ctx.font = F(11.5, '800'); ctx.textAlign = 'center';
+      ctx.fillText('16 だけ多い', lx + u * (target + sum) / 2, y + 52);
+    }
+    ctx.fillStyle = K('--k-deep');
+    drawFit(carry
+      ? a + ' ＋ ' + c + ' ＝ ' + sum + '。16 を引くと ' + ans + ' で、a − b と同じです'
+      : a + ' ＋ ' + c + ' ＝ ' + sum + '。16 を超えないので、桁上がりが出ません',
+      12, W / 2, y + 84, 'center', W - 28, '800');
     if(window.__setHit) window.__setHit(HIT);
-    var a1 = at('orig', n).reg.A, a2 = at('nosave', n).reg.A;
-    c.fillStyle = (a1 === a2) ? K('--k-inkfaint') : K('--k-warn');
-    var l3 = drawFit((a1 === a2)
-      ? 'ここまでは、どちらも同じ値です'
-      : 'レジスタ A の値が食い違いました（' + show(a1) + ' と ' + show(a2) + '）',
-      12.5, pad, y + 8, 'left', W - pad * 2, '700');
-    return y + 24 + (l3 - 1) * 19;
   }
 
-  /* ===== 段階③ 13 番地の推移（二役が見える） ===== */
+  /* ===== 場面③ 一周する文字盤 ===== */
   function drawStage3(){
-    var c = ctx, n = stp();
-    HIT = [];
-    c.fillStyle = K('--k-inksoft');
-    var ln = drawFit('13 番地に入っている値を、4 つの並びで見比べます',
-                     13, W / 2, 22, 'center', W - 16, '700');
-    var y = 52 + (ln - 1) * 19, pad = 14;
-    var labW = W >= 640 ? 178 : 0;
-    var labMax = labW ? labW - 14 : W - pad * 2;
-    var rh = Math.max(34, Math.round(42 * TIGHT));
-    ORDER.forEach(function(key){
-      var P = PROGS[key], st = at(key, n);
-      var done = (n >= P.code.length);
-      var good = done && (st.mem[13] === P.goal);
-      c.fillStyle = done ? (good ? K('--k-ok') : K('--k-warn')) : K('--k-inksoft');
-      drawFit(P.label, 12, pad, y + 13, 'left', labMax, '700');
-      c.fillStyle = K('--k-inkfaint');
-      drawFit(P.aim, 11, pad, y + 29, 'left', labMax, '600');
-      var ox = labW ? (pad + labW) : pad;
-      var yy = labW ? y : y + 36;
-      var bw = Math.min(96, W - ox - pad - 120);
-      HIT.push({x:ox, y:yy, w:bw, h:rh});
-      c.setLineDash([]);
-      c.fillStyle = (st.mem[13] === null) ? K('--k-dim') : K('--k-tint');
-      c.fillRect(ox, yy, bw, rh);
-      c.lineWidth = 2;
-      c.strokeStyle = done ? (good ? K('--k-ok') : K('--k-warn')) : K('--k-line2');
-      c.strokeRect(ox, yy, bw, rh);
-      c.fillStyle = (st.mem[13] === null) ? K('--k-dimink') : K('--k-ink');
-      c.font = F(15, '800'); c.textAlign = 'center'; c.textBaseline = 'middle';
-      c.fillText(show(st.mem[13]), ox + bw / 2, yy + rh / 2);
-      c.textBaseline = 'alphabetic';
-      c.fillStyle = done ? (good ? K('--k-ok') : K('--k-warn')) : K('--k-inkfaint');
-      c.font = F(11.5, '700'); c.textAlign = 'left';
-      c.fillText(done ? (good ? '正しい答え（' + P.goal + '）' : '答えが違う（' + P.goal + ' のはず）')
-                      : '実行中', ox + bw + 12, yy + rh / 2 + 5);
-      y = yy + rh + 12;
-    });
+    var n = dial, a = av() % n, b = bv() % n;
+    if(b === 0) b = 1;
+    var c = n - b;
+    var goal = ((a - b) % n + n) % n;
+    ctx.fillStyle = K('--k-deep');
+    var h1 = drawFit(n + ' で一周する輪では、' + b + ' だけ戻るのと ' + c + ' だけ進むのが同じです',
+      13, 14, 26, 'left', W - 28, '800');
+    var top = 26 + h1 * 21;
+    var R = Math.min((H - top - 46) / 2, W / 2 - 80, 104);
+    var cx = W / 2, cy = top + R + 16;
+
+    ctx.strokeStyle = K('--k-line2'); ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.stroke();
+    for(var i = 0; i < n; i++){
+      var t = -Math.PI / 2 + Math.PI * 2 * i / n;
+      var px = cx + Math.cos(t) * R, py = cy + Math.sin(t) * R;
+      var isNow = (i === a), isGoal = (i === goal);
+      ctx.beginPath(); ctx.arc(px, py, isNow || isGoal ? 7 : 3.2, 0, Math.PI * 2);
+      ctx.fillStyle = isNow ? K('--k-ok') : (isGoal ? K('--k-main') : K('--k-line2'));
+      ctx.fill();
+      ctx.fillStyle = (isNow || isGoal) ? K('--k-deep') : K('--k-inkfaint');
+      ctx.font = F(11, isNow || isGoal ? '800' : '700'); ctx.textAlign = 'center';
+      var lx2 = cx + Math.cos(t) * (R + 17), ly2 = cy + Math.sin(t) * (R + 17) + 4;
+      ctx.fillText(String(i), lx2, ly2);
+      HIT.push({x:px - 12, y:py - 12, w:24, h:24, n:i});
+    }
+    /* 道を描く */
+    var fwd = (way === 'fwd');
+    var steps = fwd ? c : b;
+    ctx.strokeStyle = fwd ? K('--k-second') : K('--k-main');
+    ctx.lineWidth = 3.4;
+    ctx.beginPath();
+    var a0 = -Math.PI / 2 + Math.PI * 2 * a / n;
+    var a1 = a0 + (fwd ? 1 : -1) * Math.PI * 2 * steps / n;
+    ctx.arc(cx, cy, R, a0, a1, !fwd);
+    ctx.stroke();
+    ctx.fillStyle = fwd ? K('--k-second') : K('--k-main');
+    ctx.font = F(12, '800'); ctx.textAlign = 'center';
+    drawFit(fwd ? (c + ' だけ進む') : (b + ' だけ戻る'), 12, cx, cy + 5, 'center', R * 1.5, '800');
+    ctx.fillStyle = K('--k-inksoft'); ctx.font = F(11, '700');
+    ctx.fillText('どちらも ' + goal + ' に着きます', cx, cy + 24);
+
+    ctx.fillStyle = K('--k-deep');
+    drawFit(n === 12
+      ? a + ' 時の ' + b + ' 時間前は、' + c + ' 時間進めて ' + goal + ' 時。12 を超えた分は読みません'
+      : a + ' から ' + b + ' を引くのは、補数 ' + c + ' を足して 16 を捨てるのと同じです',
+      12, W / 2, cy + R + 34, 'center', W - 28, '800');
     if(window.__setHit) window.__setHit(HIT);
-    c.fillStyle = K('--k-inkfaint');
-    var l2 = drawFit('原本の並びでは、13 番地が途中結果の 8 から答えの 1 へ書きかわります',
-                     12, pad, y + 10, 'left', W - pad * 2, '600');
-    return y + 26 + (l2 - 1) * 18;
   }
 
-  /* ===== 段階④ プログラム ===== */
-  function drawStage4(){
-    var c = ctx, P = PROGS[progKey];
-    HIT = [];
-    var lines = P.code.map(function(ins, k){ return (k + 1) + '  ' + ins.s; });
-    c.fillStyle = K('--k-inksoft');
-    var ln = drawFit(P.label + '　（' + P.aim + '）', 13, 14, 22, 'left', W - 24, '700');
-    var mpx = monoPx(lines, 13, W - 56);
-    var lh = Math.max(20, Math.round(mpx * 1.8));
-    var boxY = 42 + (ln - 1) * 19, pad = 15;
-    c.fillStyle = K('--k-subtle'); c.strokeStyle = K('--k-line'); c.lineWidth = 1.4;
-    window.roundRect(c, 14, boxY, W - 28, lines.length * lh + pad * 2 - 8, 10);
-    c.fill(); c.stroke();
-    c.font = FM(mpx); c.textAlign = 'left';
-    lines.forEach(function(t, k){
-      var ins = P.code[k];
-      var key = (ins.t === 'WRITE' && ins.a === 13 && k < P.code.length - 2)
-             || (ins.t === 'ADDR');
-      if(key){
-        c.fillStyle = K('--k-tint');
-        c.fillRect(20, boxY + pad + k * lh - 15, W - 40, lh);
-      }
-      c.fillStyle = key ? K('--k-main') : K('--k-inksoft');
-      c.fillText(t, 26, boxY + pad + k * lh);
-    });
-    var y = boxY + lines.length * lh + pad * 2 + 4;
-    c.fillStyle = (progKey === 'nosave') ? K('--k-warn') : K('--k-ok');
-    var l2 = drawFit({
-      orig:  '3 番地の退避があるので、途中結果の 8 が残ります',
-      nosave:'退避の 1 行がありません。4 番地で 8 が消えます',
-      expand:'式を変えたので、途中結果を預けなくて済みます',
-      tworeg:'空いているレジスタ B へ読むので、預けなくて済みます'
-    }[progKey], 12.5, 14, y, 'left', W - 24, '700');
-    return y + 16 + (l2 - 1) * 19;
-  }
-
+  /* ===== 組み立て ===== */
   function draw(){
-    var vh = (window.innerHeight || 900);
-    var lid = Math.max(240, Math.round(vh * 0.42));
-    var h = stage === 1 ? 320 : stage === 2 ? 290 : stage === 3 ? 300 : 300;
-    TIGHT = 1;
-    var o = window.SETUP(cv, h);
-    W = o.w; H = o.h;
+    var cw0 = cv.clientWidth || cv.parentNode.clientWidth || 600;
+    var narrow = cw0 < 560;
+    var hh0;
+    if(stage === 1)      hh0 = narrow ? 268 : 254;
+    else if(stage === 2) hh0 = narrow ? 268 : 250;
+    else                 hh0 = narrow ? 330 : 312;
+    var d = window.SETUP(cv, hh0);
+    W = d.w; H = d.h;
     ctx.clearRect(0, 0, W, H);
-    var used = run();
-    if(used > lid){
-      /* ★ TIGHT を戻さない。このあと「使った高さへ合わせ直す」再描画が走る。 */
-      TIGHT = Math.max(0.6, lid / used);
-      ctx.clearRect(0, 0, W, H);
-      used = run();
-    }
-    if(Math.abs(used - H) > 14){
-      var o2 = window.SETUP(cv, Math.max(190, used));
-      W = o2.w; H = o2.h;
-      ctx.clearRect(0, 0, W, H);
-      run();
-    }
-  }
-  function run(){
-    return stage === 1 ? drawStage1() : stage === 2 ? drawStage2()
-         : stage === 3 ? drawStage3() : drawStage4();
+    ctx.textBaseline = 'alphabetic';
+    HIT = [];
+    if(stage === 1) drawStage1();
+    else if(stage === 2) drawStage2();
+    else drawStage3();
   }
 
-  /* ===== 指標カード ===== */
-  function met(lab, val2, cls){
-    return '<div class="mcard' + (cls ? ' ' + cls : '') + '"><p class="mlab">' + lab
-         + '</p><p class="mval">' + val2 + '</p></div>';
-  }
-  function metrics(){
-    var n = stp(), h = '';
-    if(stage === 2){
-      var o1 = at('orig', n), o2 = at('nosave', n);
-      h = met('原本のレジスタ A', show(o1.reg.A), 'hl')
-        + met('退避なしのレジスタ A', show(o2.reg.A), (o1.reg.A === o2.reg.A) ? '' : 'pk')
-        + met('原本の 13 番地', show(o1.mem[13]))
-        + met('退避なしの 13 番地', show(o2.mem[13]), 'pk');
-    } else if(stage === 3){
-      h = ORDER.map(function(k){
-        var P = PROGS[k], st = at(k, n), done = (n >= P.code.length);
-        return met(P.label, show(st.mem[13]),
-                   done ? (st.mem[13] === P.goal ? 'hl' : 'pk') : '');
-      }).join('');
-    } else {
-      var P2 = PROGS[progKey], st2 = at(progKey, n);
-      h = met('次に実行する番地', (st2.i + 2 <= P2.code.length) ? (st2.i + 2) + ' 番地' : '—', 'hl')
-        + met('いまの命令', (st2.i >= 0) ? P2.code[st2.i].s : '—')
-        + met('レジスタ A', show(st2.reg.A))
-        + (P2.regs.length > 1 ? met('レジスタ B', show(st2.reg.B)) : '')
-        + met('13 番地', show(st2.mem[13]), (st2.mem[13] === null) ? '' : 'pk');
-    }
-    el.mets.innerHTML = h;
-  }
-
-  /* ===== 操作行の出し入れ ===== */
   function showRow(node, on){ if(node) node.style.display = on ? '' : 'none'; }
-  function syncRows(){
-    showRow(el.rowPlay, stage === 1 || stage === 2);
-    showRow(el.rowStep, stage === 1 || stage === 2 || stage === 3);
-    showRow(el.rowProg, stage === 1 || stage === 4);
-    showRow(el.swBeat,  stage === 1);
-    showRow(el.leg,     stage === 1 || stage === 2);
+  function met(lab, val, hl){
+    return '<div class="mcard' + (hl ? ' hl' : '') + '"><p class="mlab">' + lab
+      + '</p><p class="mval">' + val + '</p></div>';
   }
 
-  /* ===== まとめて更新 ===== */
-  function update(){
-    var m = maxStep();
-    el.stp.max = String(m);
-    if(+el.stp.value > m) el.stp.value = String(m);
-    el.stpval.textContent = el.stp.value;
-    el.stpmax.textContent = String(m);
-
-    var n = stp(), P = PROGS[progKey], st = at(progKey, n);
-    var done = (n >= P.code.length);
-    var bad = (stage === 2) || (stage === 4 && progKey === 'nosave')
-           || (done && st.mem[13] !== P.goal) || (st.lost !== null);
-    el.cbox.className = 'canvas-box ' + (bad ? 'warn' : 'ok');
-    el.banner.className = 'banner ' + (bad ? 'warn' : 'ok');
-
-    if(stage === 2){
-      var o1 = at('orig', n), o2 = at('nosave', n);
-      el.banner.innerHTML = (o1.reg.A === o2.reg.A)
-        ? '✓ ここまでは、どちらも同じ値です'
-          + '<small>レジスタ A はどちらも ' + show(o1.reg.A) + ' です。'
-          + '手を進めると、退避の 1 行がない側だけが変わります。</small>'
-        : '⚠ レジスタ A の値が食い違いました'
-          + '<small>原本は ' + show(o1.reg.A) + '、退避を抜いた並びは ' + show(o2.reg.A) + ' です。'
-          + '退避を抜いた側は、途中結果を書き出さないまま次の値を読み込みました。</small>';
-    } else if(stage === 3){
-      el.banner.innerHTML = '✓ 13 番地は、途中結果の置き場と答えの置き場を兼ねます'
-        + '<small>原本の並びでは 8 が入り、そのあと 1 で上書きされます。'
-        + '退避を抜くと 8 が入らないので、最後に書かれる値が変わります。</small>';
-    } else if(st.lost !== null){
-      el.banner.innerHTML = '⚠ レジスタ ' + P.code[st.i].r + ' の ' + show(st.lost) + ' が消えました'
-        + '<small>READ はレジスタの中身を捨てて読み込んだ値を入れます。'
-        + (st.mem[13] === null
-           ? '13 番地はまだ空なので、' + show(st.lost) + ' はどこにも残っていません。'
-           : '13 番地に書き出してあるので、あとで読み戻せます。') + '</small>';
-    } else if(done){
-      el.banner.innerHTML = (st.mem[13] === P.goal)
-        ? '✓ 13 番地は ' + show(st.mem[13]) + ' になりました'
-          + '<small>' + P.aim + ' の答えです。途中結果が失われていません。</small>'
-        : '⚠ 13 番地は ' + show(st.mem[13]) + ' になりました'
-          + '<small>' + P.aim + ' なら ' + P.goal + ' のはずです。'
-          + '途中結果が上書きで消え、5 番地の減算で引く相手がありませんでした。</small>';
-    } else if(st.emptyRead){
-      el.banner.innerHTML = '⚠ 13 番地はまだ空です'
-        + '<small>引く相手がないので、レジスタ A の値は変わりません。'
-        + '先に書き出しておけば、ここで引けました。</small>';
+  function metrics(){
+    var a = av(), b = bv(), c = M - b, sum = a + c;
+    if(stage === 1){
+      el.mets.innerHTML = met('引く数 b', b4(b) + '（' + b + '）', true)
+        + met('b の補数', b4(c) + '（' + c + '）')
+        + met('2 つを足すと', '1 0000（16）');
+    } else if(stage === 2){
+      el.mets.innerHTML = met('a に補数を足すと', String(sum), true)
+        + met('a − b', String(a - b))
+        + met('差', (sum >= M) ? '16' : '—');
     } else {
-      el.banner.innerHTML = '✓ ' + (st.i >= 0 ? (st.i + 1) + ' 番地まで実行しました' : 'はじめの状態です')
-        + '<small>' + (st.i >= 0 ? capOf(P, st, P.code[st.i]) + '。' : '主記憶に 9・1・7 が入っています。')
+      var n = dial, a2 = av() % n, b2 = (bv() % n) || 1;
+      el.mets.innerHTML = met('一周する数', String(n), true)
+        + met('戻る数', String(b2))
+        + met('進む数（補数）', String(n - b2))
+        + met('着く場所', String(((a2 - b2) % n + n) % n));
+    }
+  }
+
+  /* ★ 場面ごとに図の色の役割が変わる。凡例を据え置くと、
+     図に出てこない色を説明することになる（緑が一度も出ない場面があった）。 */
+  function legend(){
+    var sw = function(v, t){
+      return '<span><i class="sw-key" style="background:var(' + v + ')"></i>' + t + '</span>';
+    };
+    el.leg.innerHTML = (stage === 1)
+      ? sw('--navy', '引く数 b') + sw('--amber', 'b の補数') + sw('--warn', '5 桁目（16）')
+      : (stage === 2
+        ? sw('--ok', '補数だけ進む道') + sw('--navy', 'a − b の位置') + sw('--warn', '余分な 16')
+        : sw('--ok', 'いまいる場所') + sw('--navy', 'b だけ戻る道') + sw('--amber', '補数だけ進む道'));
+  }
+
+  function update(){
+    showRow(el.rowB,    true);
+    showRow(el.rowA,    stage !== 1);
+    showRow(el.rowDial, stage === 3);
+    showRow(el.rowWay,  stage === 3);
+    showRow(el.leg,     true);
+    el.a2val.textContent = String(av());
+    el.b2val.textContent = String(bv());
+
+    var a = av(), b = bv(), c = M - b, sum = a + c;
+    var carry = sum >= M;
+
+    if(stage === 1){
+      el.banner.innerHTML = '✓ ' + b + ' と ' + c + ' を足すと 16 です'
+        + '<small>補数は「足すと桁が 1 つ上がる最も小さい数」なので、'
+        + '4 ビットでは 16 から b を引いた数になります。</small>';
+    } else if(stage === 2){
+      el.banner.innerHTML = carry
+        ? '✓ 16 だけ多いところに着きます'
+          + '<small>' + a + ' ＋ ' + c + ' ＝ ' + sum + ' で、a − b ＝ ' + (a - b)
+          + ' より 16 だけ右です。その 16 が 5 桁目なので、捨てると答えが残ります。</small>'
+        : '✓ 桁上がりが出ない場合です'
+          + '<small>' + a + ' ＋ ' + c + ' ＝ ' + sum + ' で 16 を超えません。'
+          + 'a より b が大きいので、答えは負になります。</small>';
+    } else {
+      var n = dial, a2 = a % n, b2 = (b % n) || 1;
+      el.banner.innerHTML = '✓ どちらの道でも ' + (((a2 - b2) % n + n) % n) + ' に着きます'
+        + '<small>' + b2 + ' だけ戻るのと、' + (n - b2) + ' だけ進むのは同じです。'
+        + (n === 12 ? '時計なら 12 を超えた分を読みません。' : '4 ビットなら 16 を捨てます。')
         + '</small>';
     }
+    el.cbox.className = 'canvas-box ok';
+    el.banner.className = 'banner ok';
 
     el.cap.innerHTML = ['',
-      '「命令を進める」で 1 つずつ。上書きで消える値は、レジスタの下に残します。',
-      '上が原本、下が退避を抜いた並びです。どこで食い違うかを見てみてください。',
-      '手を進めると、4 つの 13 番地が同時に動きます。入る値と入らない値が分かれます。',
-      '並びを切り替えると、色の付いた行が入れ替わります。'][stage];
+      'つまみで b を替えても、2 つの帯は必ず合わせて 16 になります。',
+      'つまみで a と b を替えて、16 のずれがいつも同じことを見てみてください。',
+      'ボタンで道を替えると、着く場所が同じであることが分かります。'][stage];
 
-    syncRows(); metrics(); draw();
-    document.querySelectorAll('.qstage').forEach(function(b){
-      b.classList.toggle('active', +b.dataset.stage === stage);
+    legend(); metrics(); draw();
+    document.querySelectorAll('.qstage').forEach(function(b2){
+      b2.classList.toggle('active', +b2.dataset.stage === stage);
     });
     document.querySelectorAll('#stages .step').forEach(function(s2){
       s2.classList.toggle('on', +s2.dataset.stage === stage);
     });
+    document.querySelectorAll('.qbtn[data-d]').forEach(function(b2){
+      b2.classList.toggle('active', +b2.dataset.d === dial);
+    });
+    document.querySelectorAll('.qbtn[data-w]').forEach(function(b2){
+      b2.classList.toggle('active', b2.dataset.w === way);
+    });
   }
 
   /* ===== 結線 ===== */
-  document.querySelectorAll('.qstage').forEach(function(b){
-    b.addEventListener('click', function(){ stage = +b.dataset.stage; update(); });
+  document.querySelectorAll('.qstage').forEach(function(b2){
+    b2.addEventListener('click', function(){ stage = +b2.dataset.stage; update(); });
   });
   document.querySelectorAll('#stages .step').forEach(function(s2){
     s2.style.cursor = 'pointer';
     s2.addEventListener('click', function(){ stage = +s2.dataset.stage; update(); });
   });
-  document.querySelectorAll('.qbtn[data-p]').forEach(function(b){
-    b.addEventListener('click', function(){
-      progKey = b.dataset.p;
-      document.querySelectorAll('.qbtn[data-p]').forEach(function(o){
-        o.classList.toggle('active', o === b); });
-      update();
-    });
+  document.querySelectorAll('.qbtn[data-d]').forEach(function(b2){
+    b2.addEventListener('click', function(){ dial = +b2.dataset.d; update(); });
   });
-  el.stp.addEventListener('input', update);
-  el.beat.addEventListener('change', update);
+  document.querySelectorAll('.qbtn[data-w]').forEach(function(b2){
+    b2.addEventListener('click', function(){ way = b2.dataset.w; update(); });
+  });
+  el.a2.addEventListener('input', update);
+  el.b2.addEventListener('input', update);
 
-  function byId(id){ return document.getElementById(id); }
-  function step(d){
-    el.stp.value = String(Math.max(0, Math.min(+el.stp.max, +el.stp.value + d)));
-    update();
-  }
-  if(byId('st-next'))  byId('st-next').addEventListener('click', function(){ stop(); step(1); });
-  if(byId('st-prev'))  byId('st-prev').addEventListener('click', function(){ stop(); step(-1); });
-  if(byId('st-reset')) byId('st-reset').addEventListener('click', function(){
-    stop(); el.stp.value = '0'; update(); });
-
-  var timer = null;
-  function stop(){
-    if(timer){ clearInterval(timer); timer = null; }
-    var b2 = byId('st-play');
-    if(b2){ b2.classList.remove('active'); b2.querySelector('.n').textContent = '▶'; }
-  }
-  function play(){
-    var b2 = byId('st-play'); if(!b2) return;
-    if(timer){ stop(); return; }
-    if(+el.stp.value >= +el.stp.max) el.stp.value = '0';
-    b2.classList.add('active'); b2.querySelector('.n').textContent = '■';
-    timer = setInterval(function(){
-      if(+el.stp.value >= +el.stp.max){ stop(); return; }
-      step(1);
-    }, 760);
-  }
-  if(byId('st-play')) byId('st-play').addEventListener('click', play);
-
-  /* 図の箱を直接押して、その番地に触れる命令の手へ移る。 */
+  /* 文字盤の目盛りを押すと、そこから始める。 */
   window.__setHit = function(l){ HIT = l; };
   cv.style.cursor = 'pointer';
   cv.addEventListener('click', function(ev){
-    if(!HIT.length || stage === 4) return;
+    if(!HIT.length) return;
     var r = cv.getBoundingClientRect();
     var x = (ev.clientX - r.left) * (cv.clientWidth / r.width);
     var y = (ev.clientY - r.top)  * (cv.clientHeight / r.height);
     for(var k = 0; k < HIT.length; k++){
       var h = HIT[k];
-      if(x >= h.x - 4 && x <= h.x + h.w + 4 && y >= h.y - 4 && y <= h.y + h.h + 4){
-        if(stage === 1){
-          var a = ADRS[k], P = PROGS[progKey];
-          for(var t = 0; t < P.code.length; t++){
-            if(P.code[t].a === a){ stop(); el.stp.value = String(t + 1); update(); return; }
-          }
+      if(x >= h.x - 3 && x <= h.x + h.w + 3 && y >= h.y - 3 && y <= h.y + h.h + 3){
+        if(h.n !== undefined){ el.a2.value = String(h.n); update(); }
+        else if(h.bar){
+          var v2 = Math.max(1, Math.min(15, Math.round((x - h.x) / (h.w / M))));
+          el.b2.value = String(v2); update();
         }
         return;
       }
@@ -3142,201 +2885,148 @@ main.page h2{font-size:28px !important}
 
   /* ===== 補足（hosoku）— 中に操作子を入れる ===== */
   window.HK = {
-    uwagaki: {
-      k:'補足 ・ 消える瞬間', title:'READ はレジスタの中身を捨てる',
-      html:'<p>READ は、レジスタの中身を<b>捨ててから</b>読み込んだ値を入れます。'
-        + '足し算をするわけではないので、2 つの値が同時にのることはありません。'
-        + 'ボタンで切り替えて、8 がどうなるかを見てみてください。</p>'
-        + '<div class="hk-qrow"><button class="hk-qbtn active" type="button" data-w="before">読み込む前</button>'
-        + '<button class="hk-qbtn" type="button" data-w="after">READ A,(10) のあと</button></div>'
-        + window.FW('レジスタに8がのった状態と、9を読み込んで8が打ち消し線で消えた状態を左右に並べた図')
-        + '<div class="hk-num">読み込む前はレジスタ A ＝ 8。READ A,(10) のあとは 9。'
-        + '足して 17 にはならず、8 はどこにも残りません。</div>'
+    teigi: {
+      k:'補足 ・ 16 − b になる理由', title:'反転した数は 15 − b です',
+      html:'<p>4 桁すべてが 1 の <b>1111</b> は 15 です。b を反転した数は、'
+        + 'b と足すとどの桁も 1 になるので、<b>15 − b</b> にあたります。'
+        + '<span class="mk">ここへ 1 を足すので、補数は 16 − b です。</span>'
+        + 'つまみで b を替えて、3 つの数の関係が保たれるのを見てみてください。</p>'
+        + '<div class="hk-ctl"><label class="sl" for="hktg">引く数 b</label>'
+        + '<input id="hktg" type="range" min="1" max="15" step="1" value="6" aria-label="引く数 b">'
+        + '</div>'
+        + window.FW('b・反転した数・補数の 3 本を並べ、反転が 15 − b、補数が 16 − b になることを示した図')
+        + '<div class="hk-num">b が 6 なら、反転は 9（15 − 6）、補数は 10（16 − 6）。'
+        + 'b と反転を足すと 15、b と補数を足すと 16 です。</div>'
         + '<div class="hk-key">' + window.BULB
-        + '<div>10 番地のほうの 9 は<b>残ります</b>。減るのはレジスタの中身だけです。</div></div>',
-      fig:function(cv2, B){
-        var root = cv2.closest('.hk-card'), when = 'before';
-        function paint(){
-          var d = B.setupMini(cv2, 0.44, 150), c = d.c, Wd = d.w;
-          c.clearRect(0, 0, Wd, d.h);
-          var after = (when === 'after');
-          var bw = Math.min(120, (Wd - 56) / 2.3), bh = 50, oy = 54;
-          var lx = 14, rx = Wd - 14 - bw;
-          function box(x, lab, v, col){
-            c.fillStyle = B.TINT; c.fillRect(x, oy, bw, bh);
-            c.lineWidth = 2.2; c.strokeStyle = col; c.strokeRect(x, oy, bw, bh);
-            c.fillStyle = B.INK; c.font = '800 ' + B.fs(15) + 'px ' + B.font;
-            c.textAlign = 'center'; c.textBaseline = 'middle';
-            c.fillText(v, x + bw / 2, oy + bh / 2);
-            c.textBaseline = 'alphabetic';
-            c.fillStyle = B.INKSOFT; c.font = '700 ' + B.fs(11) + 'px ' + B.font;
-            c.fillText(lab, x + bw / 2, oy - 9);
-          }
-          box(lx, '10 番地', '9', B.MAIN);
-          box(rx, 'レジスタ A', after ? '9' : '8', after ? B.WARN : B.MAIN);
-          if(after){
-            var tx = rx + bw / 2, ty = oy + bh + 26;
-            c.fillStyle = B.WARN; c.font = '700 ' + B.fs(13) + 'px ' + B.font;
-            c.textAlign = 'center'; c.fillText('8', tx, ty);
-            var tw = c.measureText('8').width;
-            c.strokeStyle = B.WARN; c.lineWidth = 2;
-            c.beginPath(); c.moveTo(tx - tw / 2 - 5, ty - 5);
-            c.lineTo(tx + tw / 2 + 5, ty - 5); c.stroke();
-            c.font = '700 ' + B.fs(11) + 'px ' + B.font;
-            c.fillText('どこにも残りません', tx, ty + 18);
-          }
-          c.fillStyle = B.DEEP; c.font = '700 ' + B.fs(12.5) + 'px ' + B.font; c.textAlign = 'center';
-          c.fillText(after ? 'レジスタ A は 9 になりました' : 'レジスタ A に 8 がのっています', Wd / 2, 24);
-        }
-        if(root) root.querySelectorAll('.hk-qbtn').forEach(function(b2){
-          b2.addEventListener('click', function(){
-            when = b2.dataset.w;
-            root.querySelectorAll('.hk-qbtn').forEach(function(o){ o.classList.toggle('active', o === b2); });
-            paint();
-          });
-        });
-        paint();
-      }
-    },
-
-    karappo: {
-      k:'補足 ・ 空の番地を引く', title:'引く相手がないと、値は変わらない',
-      html:'<p>退避を抜くと、5 番地の減算のときに <b>13 番地はまだ空</b>です。'
-        + '引く相手がないので、レジスタ A の 9 はそのまま残ります。'
-        + 'そして 13 番地には 9 が書き込まれます。'
-        + 'つまみで手を進めて、どこで分かれるかを見てみてください。</p>'
-        + '<div class="hk-ctl"><label>命令を進める</label>'
-        + '<input class="hk-st" type="range" min="1" max="5" step="1" value="2" aria-label="命令を進める">'
-        + '<span class="hk-out">2</span></div>'
-        + window.FW('退避を抜いた並びを1命令ずつ進め、レジスタAと13番地の値の変化を横に並べた図')
-        + '<div class="hk-num">1 READ で A ＝ 1。2 ADD で A ＝ 8。3 READ で A ＝ 9（8 が消える）。'
-        + '4 SUB は 13 番地が空なので A ＝ 9 のまま。5 WRITE で 13 番地 ＝ 9。</div>'
-        + '<div class="hk-key">' + window.BULB
-        + '<div>命令の意味はどれも正しいのに、<b>答えだけが変わります</b>。</div></div>',
-      fig:function(cv2, B){
+        + '<div>反転は <b>15 − b</b>、補数は <b>16 − b</b>。違いはちょうど 1 です。</div></div>',
+      fig:function(cv2, B2){
         var root = cv2.closest('.hk-card');
-        var sl = root ? root.querySelector('.hk-st') : null;
-        var out = root ? root.querySelector('.hk-out') : null;
+        var sl = root ? root.querySelector('#hktg') : null;
         function paint(){
-          var n = sl ? +sl.value : 2;
-          if(out) out.textContent = String(n);
-          var st = at('nosave', n), P = PROGS.nosave;
-          var d = B.setupMini(cv2, 0.46, 156), c = d.c, Wd = d.w;
-          c.clearRect(0, 0, Wd, d.h);
-          var bw = Math.min(120, (Wd - 56) / 2.3), bh = 48, oy = 58;
-          var lx = 14, rx = Wd - 14 - bw;
-          function box(x, lab, v, col){
-            c.fillStyle = (v === null) ? B.DIM : B.TINT; c.fillRect(x, oy, bw, bh);
-            c.lineWidth = 2.2; c.strokeStyle = col; c.strokeRect(x, oy, bw, bh);
-            c.fillStyle = (v === null) ? B.DIMINK : B.INK;
-            c.font = '800 ' + B.fs(15) + 'px ' + B.font;
-            c.textAlign = 'center'; c.textBaseline = 'middle';
-            c.fillText(show(v), x + bw / 2, oy + bh / 2);
-            c.textBaseline = 'alphabetic';
-            c.fillStyle = B.INKSOFT; c.font = '700 ' + B.fs(11) + 'px ' + B.font;
-            c.fillText(lab, x + bw / 2, oy - 9);
-          }
-          box(lx, 'レジスタ A', st.reg.A, st.lost !== null ? B.WARN : B.MAIN);
-          box(rx, '13 番地', st.mem[13], st.mem[13] === null ? B.DIMBD : B.MAIN);
-          c.fillStyle = B.DEEP; c.font = '700 ' + B.fs(12) + 'px ' + B.font; c.textAlign = 'center';
-          c.fillText(n + ' 番地　' + P.code[n - 1].s, Wd / 2, 24);
-          c.fillStyle = st.lost !== null ? B.WARN : (st.emptyRead ? B.WARN : B.INKSOFT);
-          c.font = '700 ' + B.fs(11.5) + 'px ' + B.font;
-          c.fillText(st.lost !== null ? show(st.lost) + ' が上書きで消えました'
-                   : st.emptyRead ? '13 番地が空なので、引く相手がありません'
-                   : '　', Wd / 2, oy + bh + 26);
+          var b = sl ? +sl.value : 6, iv = 15 - b, c = 16 - b;
+          var d = B2.setupMini(cv2, 0.5, 182), c2 = d.c, Wd = d.w, Hd = d.h;
+          c2.clearRect(0, 0, Wd, Hd);
+          c2.fillStyle = B2.DEEP; c2.font = '800 ' + B2.fs(12.5) + 'px ' + B2.font;
+          c2.textAlign = 'center';
+          c2.fillText('b ＝ ' + b + '　反転 ＝ ' + iv + '　補数 ＝ ' + c, Wd / 2, 22);
+          var rows = [['b', b, B2.MAIN], ['反転（15 − b）', iv, B2.SECOND],
+                      ['補数（16 − b）', c, B2.OK]];
+          var lw = 108, barW = Wd - lw - 32, u = barW / 16;
+          var oy = 44, bh = 26, pitch = bh + 16;
+          rows.forEach(function(r, i){
+            var y = oy + i * pitch;
+            c2.fillStyle = B2.INKSOFT; c2.font = '700 ' + B2.fs(11) + 'px ' + B2.font;
+            c2.textAlign = 'right'; c2.fillText(r[0], lw - 8, y + bh / 2 + 4);
+            c2.strokeStyle = B2.LINE2; c2.lineWidth = 1.2;
+            c2.strokeRect(lw, y, barW, bh);
+            c2.fillStyle = r[2]; c2.fillRect(lw, y, u * r[1], bh);
+            c2.fillStyle = B2.PAPER; c2.font = '800 ' + B2.fs(11) + 'px ' + B2.font;
+            c2.textAlign = 'center';
+            if(r[1] >= 3) c2.fillText(String(r[1]), lw + u * r[1] / 2, y + bh / 2 + 4);
+          });
+          c2.fillStyle = B2.INKSOFT; c2.font = '700 ' + B2.fs(11) + 'px ' + B2.font;
+          c2.textAlign = 'center';
+          c2.fillText('反転より 1 だけ長いのが補数です', Wd / 2, Hd - 12);
         }
         if(sl) sl.addEventListener('input', paint);
         paint();
       }
     },
-
-    futatsu: {
-      k:'補足 ・ レジスタが 2 つ', title:'空いているほうへ読み込む',
-      html:'<p>レジスタが 2 つあるときは、書き出す代わりに<b>空いているほう</b>へ読み込みます。'
-        + '途中結果はもう一方に残るので、そのあと 2 つを足せます。'
-        + 'ボタンで読み込む先を替えて、何が起きるかを見てみてください。</p>'
-        + '<div class="hk-qrow"><button class="hk-qbtn active" type="button" data-r="B">空いている B へ</button>'
-        + '<button class="hk-qbtn" type="button" data-r="A">使用中の A へ</button></div>'
-        + window.FW('レジスタAに途中結果がある状態で、Bへ読むと両方残り、Aへ読むと途中結果が消えることを比べた図')
-        + '<div class="hk-num">A に 10（X ＋ Y）が入っている状態で 12 番地の 7 を読む。'
-        + 'B へ読めば A ＝ 10・B ＝ 7 で、足して 17。A へ読むと 10 が消えて A ＝ 7 になる。</div>'
+    kazu: {
+      k:'補足 ・ 数直線で見る', title:'ずれはいつも 16 です',
+      html:'<p>a から補数ぶん進んだ先は、<b>a − b より 16 だけ右</b>です。'
+        + 'a や b をどう替えても、このずれは 16 のまま変わりません。'
+        + '<span class="mk">だから捨てる量もいつも 16 で、5 桁目 1 つぶんです。</span>'
+        + 'つまみで a を替えて、2 本の矢印の長さの差を見てみてください。</p>'
+        + '<div class="hk-ctl"><label class="sl" for="hkka">引かれる数 a</label>'
+        + '<input id="hkka" type="range" min="0" max="15" step="1" value="9" aria-label="引かれる数 a">'
+        + '</div>'
+        + window.FW('0 から 31 の数直線に、a − b の位置と a に補数を足した位置を取り、その間が常に 16 であることを示した図')
+        + '<div class="hk-num">a が 9、b が 3 なら、a − b は 6、a ＋ 補数は 22。差は 16 です。'
+        + 'a を替えても差は 16 のままです。</div>'
         + '<div class="hk-key">' + window.BULB
-        + '<div>やっていることは退避と同じです。<b>置き場所を用意してから次を読む</b>。</div></div>',
-      fig:function(cv2, B){
-        var root = cv2.closest('.hk-card'), to = 'B';
+        + '<div>捨てる量が<b>いつも同じ</b>だから、「5 桁目を無視する」で済みます。</div></div>',
+      fig:function(cv2, B2){
+        var root = cv2.closest('.hk-card');
+        var sl = root ? root.querySelector('#hkka') : null;
         function paint(){
-          var d = B.setupMini(cv2, 0.46, 156), c = d.c, Wd = d.w;
-          c.clearRect(0, 0, Wd, d.h);
-          var toB = (to === 'B');
-          var bw = Math.min(112, (Wd - 60) / 2.3), bh = 48, oy = 58;
-          var lx = 16, rx = Wd - 16 - bw;
-          function box(x, lab, v, col){
-            c.fillStyle = B.TINT; c.fillRect(x, oy, bw, bh);
-            c.lineWidth = 2.2; c.strokeStyle = col; c.strokeRect(x, oy, bw, bh);
-            c.fillStyle = B.INK; c.font = '800 ' + B.fs(15) + 'px ' + B.font;
-            c.textAlign = 'center'; c.textBaseline = 'middle';
-            c.fillText(v, x + bw / 2, oy + bh / 2);
-            c.textBaseline = 'alphabetic';
-            c.fillStyle = B.INKSOFT; c.font = '700 ' + B.fs(11) + 'px ' + B.font;
-            c.fillText(lab, x + bw / 2, oy - 9);
+          var a = sl ? +sl.value : 9, b = 3, c = 16 - b;
+          var sum = a + c, tgt = a - b;
+          var d = B2.setupMini(cv2, 0.46, 168), c2 = d.c, Wd = d.w, Hd = d.h;
+          c2.clearRect(0, 0, Wd, Hd);
+          c2.fillStyle = B2.DEEP; c2.font = '800 ' + B2.fs(12.5) + 'px ' + B2.font;
+          c2.textAlign = 'center';
+          c2.fillText('a ＝ ' + a + '　a − b ＝ ' + tgt + '　a ＋ 補数 ＝ ' + sum, Wd / 2, 22);
+          var lx = 22, rx2 = Wd - 22, u = (rx2 - lx) / 32, y = Hd / 2 + 8;
+          c2.strokeStyle = B2.LINE2; c2.lineWidth = 1.8;
+          c2.beginPath(); c2.moveTo(lx, y); c2.lineTo(rx2, y); c2.stroke();
+          for(var i = 0; i <= 32; i += 8){
+            c2.fillStyle = B2.INKSOFT; c2.font = '700 ' + B2.fs(11) + 'px ' + B2.font;
+            c2.fillText(String(i), lx + u * i, y + 18);
           }
-          box(lx, 'レジスタ A', toB ? '10' : '7', toB ? B.MAIN : B.WARN);
-          box(rx, 'レジスタ B', toB ? '7' : '空', toB ? B.MAIN : B.DIMBD);
-          c.fillStyle = B.DEEP; c.font = '700 ' + B.fs(12.5) + 'px ' + B.font; c.textAlign = 'center';
-          c.fillText(toB ? 'READ B,(12)' : 'READ A,(12)', Wd / 2, 24);
-          c.fillStyle = toB ? B.OK : B.WARN;
-          c.font = '700 ' + B.fs(11.5) + 'px ' + B.font;
-          c.fillText(toB ? '両方残るので、足して 17 になります'
-                         : '途中結果の 10 が消えました', Wd / 2, oy + bh + 26);
-        }
-        if(root) root.querySelectorAll('.hk-qbtn').forEach(function(b2){
-          b2.addEventListener('click', function(){
-            to = b2.dataset.r;
-            root.querySelectorAll('.hk-qbtn').forEach(function(o){ o.classList.toggle('active', o === b2); });
-            paint();
+          [[tgt, B2.MAIN, 'a − b'], [sum, B2.OK, 'a ＋ 補数']].forEach(function(p, i){
+            if(p[0] < 0) return;
+            c2.beginPath(); c2.arc(lx + u * p[0], y, 5, 0, Math.PI * 2);
+            c2.fillStyle = p[1]; c2.fill();
+            c2.font = '800 ' + B2.fs(11) + 'px ' + B2.font;
+            c2.fillText(p[2], lx + u * p[0], y - 12 - i * 14);
           });
-        });
+          if(tgt >= 0){
+            c2.strokeStyle = B2.WARN; c2.lineWidth = 2.4;
+            c2.beginPath(); c2.moveTo(lx + u * tgt, y + 30);
+            c2.lineTo(lx + u * sum - 6, y + 30); c2.stroke();
+            c2.fillStyle = B2.WARN; B2.arrowHead(c2, lx + u * sum, y + 30, 'right');
+            c2.font = '800 ' + B2.fs(11) + 'px ' + B2.font;
+            c2.fillText('16', lx + u * (tgt + sum) / 2, y + 26);
+          }
+          c2.fillStyle = B2.INKSOFT; c2.font = '700 ' + B2.fs(11) + 'px ' + B2.font;
+          c2.fillText('a を替えても、この幅は 16 のままです', Wd / 2, Hd - 10);
+        }
+        if(sl) sl.addEventListener('input', paint);
         paint();
       }
     },
-
-    tenkai: {
-      k:'補足 ・ 式を変える', title:'退避が要らない書き方もある',
-      html:'<p>X −（Y ＋ Z）は <b>X − Y − Z</b> と同じです。'
-        + 'こちらの形で書くと、途中結果を預ける必要がありません。'
-        + 'X を読んでから 2 回引くだけなので、命令も 1 つ少なくて済みます。'
-        + 'ボタンで並びを替えて、長さと 13 番地の使われ方を比べてみてください。</p>'
-        + '<div class="hk-qrow"><button class="hk-qbtn active" type="button" data-k="orig">原本（退避あり）</button>'
-        + '<button class="hk-qbtn" type="button" data-k="expand">式を展開</button></div>'
-        + window.FW('原本の並びと式を展開した並びを上下に並べ、命令の数と13番地に書く回数を比べた図')
-        + '<div class="hk-num">原本は 7 行で、13 番地に 2 回書きます。'
-        + '式を展開すると 5 行で、13 番地に書くのは最後の 1 回だけです。答えはどちらも 1。</div>'
+    tokei: {
+      k:'補足 ・ 時計との違い', title:'一周する数が違うだけです',
+      html:'<p>時計は 12 で一周し、4&nbsp;ビットは 16 で一周します。'
+        + 'コンピュータが実際に使う 8&nbsp;ビットなら 256 です。'
+        + '<span class="mk">一周する数がいくつでも、戻る代わりに進む、という仕組みは同じです。</span>'
+        + 'ボタンで一周する数を替えて、補数がどう変わるかを見てみてください。</p>'
+        + '<div class="hk-qrow"><button class="hk-qbtn active" type="button" data-k="12">時計（12）</button>'
+        + '<button class="hk-qbtn" type="button" data-k="16">4 ビット（16）</button>'
+        + '<button class="hk-qbtn" type="button" data-k="256">8 ビット（256）</button></div>'
+        + window.FW('一周する数が 12・16・256 のときの、3 を引く代わりに進む数を並べた図')
+        + '<div class="hk-num">3 を引く代わりに進む数は、12 なら 9、16 なら 13、256 なら 253。'
+        + 'いずれも「一周する数 − 3」です。</div>'
         + '<div class="hk-key">' + window.BULB
-        + '<div>並べ方だけでなく、<b>式の形</b>を変えても解けます。</div></div>',
-      fig:function(cv2, B){
-        var root = cv2.closest('.hk-card'), key = 'orig';
+        + '<div>捨てるのは<b>一周ぶん</b>。2 進数ではそれが 1 つ上の桁になります。</div></div>',
+      fig:function(cv2, B2){
+        var root = cv2.closest('.hk-card'), n = 12;
         function paint(){
-          var P = PROGS[key];
-          var d = B.setupMini(cv2, 0.5, 168), c = d.c, Wd = d.w;
-          c.clearRect(0, 0, Wd, d.h);
-          var lh = 20, oy = 44;
-          c.fillStyle = B.DEEP; c.font = '700 ' + B.fs(12.5) + 'px ' + B.font; c.textAlign = 'center';
-          c.fillText(P.label + '　' + P.code.length + ' 行', Wd / 2, 24);
-          c.font = '600 ' + B.fs(11.5) + 'px ' + B.mono; c.textAlign = 'left';
-          P.code.forEach(function(ins, k){
-            var isW13 = (ins.t === 'WRITE' && ins.a === 13);
-            c.fillStyle = isW13 ? B.MAIN : B.INKSOFT;
-            c.fillText((k + 1) + '  ' + ins.s, 16, oy + k * lh);
-          });
-          var nw = P.code.filter(function(i2){ return i2.t === 'WRITE' && i2.a === 13; }).length;
-          c.fillStyle = B.OK; c.font = '700 ' + B.fs(11.5) + 'px ' + B.font; c.textAlign = 'left';
-          c.fillText('13 番地に書く回数：' + nw + ' 回', 16, oy + P.code.length * lh + 12);
+          var b = 3, c = n - b;
+          var d = B2.setupMini(cv2, 0.44, 158), c2 = d.c, Wd = d.w, Hd = d.h;
+          c2.clearRect(0, 0, Wd, Hd);
+          c2.fillStyle = B2.DEEP; c2.font = '800 ' + B2.fs(12.5) + 'px ' + B2.font;
+          c2.textAlign = 'center';
+          c2.fillText(n + ' で一周　3 を引く ＝ ' + c + ' 進む', Wd / 2, 22);
+          var lw = 96, barW = Wd - lw - 30, u = barW / n, y = Hd / 2 - 6, bh = 28;
+          c2.strokeStyle = B2.LINE2; c2.lineWidth = 1.4;
+          c2.strokeRect(lw, y, barW, bh);
+          c2.fillStyle = B2.SECOND; c2.fillRect(lw, y, u * c, bh);
+          c2.fillStyle = B2.MAIN;   c2.fillRect(lw + u * c, y, u * b, bh);
+          c2.fillStyle = B2.PAPER; c2.font = '800 ' + B2.fs(11) + 'px ' + B2.font;
+          if(u * c > 26) c2.fillText('進む ' + c, lw + u * c / 2, y + bh / 2 + 4);
+          if(u * b > 26) c2.fillText(String(b), lw + u * (c + b / 2), y + bh / 2 + 4);
+          c2.fillStyle = B2.INKSOFT; c2.font = '700 ' + B2.fs(11) + 'px ' + B2.font;
+          c2.textAlign = 'right'; c2.fillText('一周 ' + n, lw - 8, y + bh / 2 + 4);
+          c2.textAlign = 'center';
+          c2.fillText('進む数は「一周する数 − 3」です', Wd / 2, Hd - 12);
         }
         if(root) root.querySelectorAll('.hk-qbtn').forEach(function(b2){
           b2.addEventListener('click', function(){
-            key = b2.dataset.k;
-            root.querySelectorAll('.hk-qbtn').forEach(function(o){ o.classList.toggle('active', o === b2); });
+            n = +b2.dataset.k;
+            root.querySelectorAll('.hk-qbtn').forEach(function(o){
+              o.classList.toggle('active', o === b2); });
             paint();
           });
         });
