@@ -1,18 +1,18 @@
 <!doctype html>
 <!--
-  情報 解説Webツール — イチから図解：2 つの探し方
-  第7回 探索のアルゴリズム（00）。
+  情報 解説Webツール — イチから図解：スイッチとランプで表を作る
+  第3回 論理回路と真理値表（00）。
   ★ このファイルは生成物。手で直さない。
-    中身  = dist/binary-search/_src/00-hajimete.body.html ＋ 00-hajimete.mat.js
+    中身  = dist/logic-gates/_src/00-hajimete.body.html ＋ 00-hajimete.mat.js
     外枠  = _series/engine.css ＋ _series/engine.js
-    組む  = python3 _series/build_series.py binary-search
+    組む  = python3 _series/build_series.py logic-gates
   外部依存ゼロ（CDN・Webフォント・KaTeX・Chart.js 不使用）。localStorage 不使用。
 -->
 <html lang="ja">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>イチから図解：2 つの探し方 ｜ mikikof-lab</title>
+<title>イチから図解：スイッチとランプで表を作る ｜ mikikof-lab</title>
 <style>
 /* ============================================================================
    情報 解説Webツール — シリーズ engine（共有の外枠）
@@ -1785,83 +1785,108 @@ main.page h2{font-size:28px !important}
 </button>
 <main class="page">
   <div class="kicker">
-    <span class="badge">第7回 探索のアルゴリズム</span>
+    <span class="badge">第3回 論理回路と真理値表</span>
     <span class="badge em">いちばんやさしい</span>
     <span>用語をほとんど使いません</span>
   </div>
 
-  <h1>イチから図解：​2 つの探し方</h1>
-  <p class="lead">たくさんの数の中から 1 つを見つけます。端から順に見ていく方法と、真ん中と比べて半分を捨てる方法を、図だけで並べます。</p>
-
-  <h2><span class="bar"></span>動かして確かめる</h2>
-  <p>図の上の<b>場面</b>を切り替えると、探し方が順に現れます。<b>小さい順に並べておく</b>を外すと、半分を捨てられなくなります。</p>
+  <h1>イチから図解：​スイッチとランプで表を作る</h1>
+  <p class="lead">スイッチを押すか戻すかで、ランプが点いたり消えたりします。<span class="mk">その組合せを全部並べて書いたものが、表になります</span>。</p>
 
   <div class="figbox" id="fig-basic">
     <div class="zoomrow">
       <button class="fig-zoom" type="button" data-fig="fig-basic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>拡大して見る</button>
     </div>
 
+    <div class="panel stagebar">
+      <div class="qrow">
+        <button class="qbtn qstage active" type="button" data-stage="1"><span class="n">1</span>2 つで 4 通り</button>
+        <button class="qbtn qstage" type="button" data-stage="2"><span class="n">2</span>1 本の線につなぐ</button>
+        <button class="qbtn qstage" type="button" data-stage="3"><span class="n">3</span>2 本に分けてつなぐ</button>
+        <button class="qbtn qstage" type="button" data-stage="4"><span class="n">4</span>反対にする</button>
+      </div>
+    </div>
+
     <div id="banner" class="banner ok"></div>
 
     <div id="cbox" class="canvas-box ok">
-      <canvas id="cv" role="img" aria-label="7 個の数を並べた箱の図。場面を進めると、線形探索で先頭から順に比べるようす、二分探索で真ん中と比べて小さいほうの半分を薄く消すようす、比べた真ん中にも×を付けて次の範囲から外すようすが、順に現れる。"></canvas>
+      <canvas id="cv" role="img" aria-label="場面ごとに入れ替わる図。2 つのスイッチの押す・戻すの組合せが 4 通りあり、それを上から順に並べた表になるようす。スイッチ 2 つを 1 本の線につなぐと、両方押したときだけランプが点くようす。2 本に分けてつなぐと、どちらか押せば点き、両方押しても点くようす。入ってきた 0 と 1 を反対にして出すようす。表の行やスイッチをタップすると選べます。"></canvas>
     </div>
 
-    <div class="panel">
-      <div class="qrow">
-        <span class="qcap">場面</span>
-        <button class="qbtn active" type="button" data-scene="1"><span class="n">1</span>探すということ</button>
-        <button class="qbtn" type="button" data-scene="2"><span class="n">2</span>端から順に</button>
-        <button class="qbtn" type="button" data-scene="3"><span class="n">3</span>半分を捨てる</button>
-        <button class="qbtn" type="button" data-scene="4"><span class="n">4</span>真ん中も外す</button>
+    <div class="panel" id="ctlpanel">
+      <div class="ctl-row" id="row-comb">
+        <label class="sl" for="rw"><svg class="lbi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/><path d="M8 3v18"/></svg>組合せを送る</label>
+        <input id="rw" type="range" min="1" max="4" step="1" value="2" aria-label="組合せを送る">
+        <span class="sl-out"><span id="rwval">2</span>/4</span>
       </div>
-      <div class="switches">
-        <label class="sw"><input type="checkbox" id="t-sorted" checked><span class="track"></span>小さい順に並べておく</label>
+      <div class="qrow" id="row-sw">
+        <span class="qcap"><svg class="lbi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v6"/></svg>押す（もう一度で戻す）</span>
+        <button class="qbtn" type="button" data-sw="a">スイッチ A</button>
+        <button class="qbtn" type="button" data-sw="b">スイッチ B</button>
       </div>
+      <div class="qrow" id="row-not">
+        <span class="qcap"><svg class="lbi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3v6M21 6h-8"/><path d="M3 12h10M7 9l-4 3 4 3"/></svg>入ってくる値</span>
+        <button class="qbtn active" type="button" data-n="0">0</button>
+        <button class="qbtn" type="button" data-n="1">1</button>
+      </div>
+      <div class="qrow" id="row-view">
+        <span class="qcap"><svg class="lbi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 9v11"/></svg>見せ方</span>
+        <button class="qbtn active" type="button" data-v="lamp">スイッチとランプ</button>
+        <button class="qbtn" type="button" data-v="table">表</button>
+      </div>
+    </div>
+
+    <div class="legend" id="leg">
+      <span><i class="sw-key" style="background:var(--ok)"></i>点いている（1）</span>
+      <span><i class="sw-key" style="background:var(--line-2)"></i>消えている（0）</span>
+      <span><i class="sw-key" style="background:var(--warn)"></i>いま見ている行</span>
     </div>
 
     <div class="metrics">
-      <div class="mcard hl"><p class="mlab">探す数</p><p class="mval">52</p></div>
-      <div class="mcard"><p class="mlab">端から順に</p><p class="mval"><span id="ro-lin">5</span> 回</p></div>
-      <div class="mcard"><p class="mlab">半分ずつなら</p><p class="mval"><span id="ro-bin">3</span> 回</p></div>
+      <div class="mcard hl"><p class="mlab" id="lab-comb">いまの組合せ</p><p class="mval" id="ro-comb">A 0 ・ B 1</p></div>
+      <div class="mcard"><p class="mlab" id="lab-lamp">ランプ</p><p class="mval" id="ro-lamp">消</p></div>
+      <div class="mcard"><p class="mlab">組合せの数</p><p class="mval" id="ro-n">4</p></div>
     </div>
 
-    <p class="cap" id="scene-cap"></p>
+    <p class="cap" id="stage-cap"></p>
   </div>
 
   <div class="steps" id="stages">
-    <div class="step on" data-scene="1"><span class="sno">1</span><div class="sbody"><div class="smath">探すということ</div><div class="snote">たくさんの中から目的の 1 つを見つけます。コンピュータは決まった手順で、1 つずつ確かめていきます。</div></div></div>
-    <div class="step" data-scene="2"><span class="sno">2</span><div class="sbody"><div class="smath">端から順に</div><div class="snote">先頭から 1 つずつ比べます。前のほうにあれば少ない回数で見つかり、後ろにあるほど回数が増えます。</div></div></div>
-    <div class="step" data-scene="3"><span class="sno">3</span><div class="sbody"><div class="smath">半分を捨てる</div><div class="snote">真ん中と比べて、いらないほうの半分を<b>まるごと</b>捨てます。小さい順に並んでいるときだけできます。</div></div></div>
-    <div class="step" data-scene="4"><span class="sno">4</span><div class="sbody"><div class="smath">真ん中も外す</div><div class="snote">比べた真ん中にも × が付きます。比べて外れたのですから、もう調べる必要がありません。</div></div></div>
+    <div class="step on" data-stage="1"><span class="sno">1</span><div class="sbody"><div class="smath">2 つで 4 通り</div><div class="snote">スイッチが 2 つあると、押す・戻すの組合せは 2 かける 2 で 4 通りです。これを上から順に並べて書きます。</div></div></div>
+    <div class="step" data-stage="2"><span class="sno">2</span><div class="sbody"><div class="smath">1 本の線につなぐ</div><div class="snote">2 つのスイッチを 1 本の線に並べてつなぎます。両方が押されて初めて電気が通ります。片方だけでは点きません。</div></div></div>
+    <div class="step" data-stage="3"><span class="sno">3</span><div class="sbody"><div class="smath">2 本に分けてつなぐ</div><div class="snote">線を 2 本に分けて、それぞれにスイッチを置きます。どちらか片方が押されていれば通ります。両方押しても通ります。</div></div></div>
+    <div class="step" data-stage="4"><span class="sno">4</span><div class="sbody"><div class="smath">反対にする</div><div class="snote">入ってきた値を反対にして出します。0 が入れば 1、1 が入れば 0 です。入口も出口も 1 本ずつです。</div></div></div>
   </div>
 
   <h2><span class="bar"></span>場面の説明</h2>
 
-  <p><b>探す</b>というのは、たくさんの中から目的の 1 つを見つけることです。名簿から名前を見つける、辞書から言葉を見つける。どれも探しています。コンピュータは決まった手順で、1 つずつ確かめていきます。</p>
+  <p>スイッチが 2&nbsp;つあると、押す・戻すの組合せは <b>2 かける 2 で 4&nbsp;通り</b>です。どちらも戻す、B だけ押す、A だけ押す、両方押す。<span class="mk">この 4&nbsp;通りを上から順に並べ、それぞれでランプがどうなるかを書き込みます。</span><button class="hk-chip" type="button" data-hk="yonhtsu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.5a2.4 2.4 0 1 1 3.3 2.2c-.6.3-.9.7-.9 1.3v.5M12 16.5v.01"/></svg>スイッチが 3 つなら何通りですか</button></p>
 
-  <p><b>端から順に 1 つずつ</b>比べる方法を、線形探索といいます。前のほうにあれば少ない回数で見つかり、後ろにあるほど回数が増えます。<b>並んでいなくても使えます。</b><button class="hk-chip" type="button" data-hk="linear-itsu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.5a2.4 2.4 0 1 1 3.3 2.2c-.6.3-.9.7-.9 1.3v.5M12 16.5v.01"/></svg>端から順が速いことも？</button></p>
+  <p>2&nbsp;つのスイッチを<b>1 本の線に並べて</b>つなぐと、両方が押されて初めて電気が通ります。線を<b>2 本に分けて</b>それぞれに置くと、どちらか片方でも通ります。<span class="mk">つなぎ方を変えただけで、ランプの点き方が変わります。</span><button class="hk-chip" type="button" data-hk="tsunagi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.5a2.4 2.4 0 1 1 3.3 2.2c-.6.3-.9.7-.9 1.3v.5M12 16.5v.01"/></svg>2 本に分けると、両方押したときは</button></p>
 
-  <p><b>真ん中と比べて半分を捨てる</b>方法を、二分探索といいます。小さい順に並んでいれば、真ん中と比べるだけで「前にあるか、後ろにあるか」が決まります。決まれば、いらないほうの半分を<b>まるごと</b>捨てられます。<button class="hk-chip" type="button" data-hk="naraberu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.5a2.4 2.4 0 1 1 3.3 2.2c-.6.3-.9.7-.9 1.3v.5M12 16.5v.01"/></svg>並んでいないとどうなる？</button></p>
+  <p>押した状態を <b>1</b>、戻した状態を <b>0</b> と書きます。ランプも、点いていれば 1、消えていれば 0 です。こう決めておくと、絵を描かずに数字だけで表せます。<span class="mk">表の左が入れたもの、右が出てきたものです。</span><button class="hk-chip" type="button" data-hk="yomikata"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.5a2.4 2.4 0 1 1 3.3 2.2c-.6.3-.9.7-.9 1.3v.5M12 16.5v.01"/></svg>どちらから読みますか</button></p>
 
-  <p>捨てるとき、<b>比べた真ん中も一緒に捨てます</b>。真ん中は比べて外れたのですから、もう調べる必要がありません。上の場面 4 で、×が付いた箱がそれです。<button class="hk-chip" type="button" data-hk="chuuouchi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.5a2.4 2.4 0 1 1 3.3 2.2c-.6.3-.9.7-.9 1.3v.5M12 16.5v.01"/></svg>「中央値」とは別の言葉？</button></p>
+  <p>もう 1&nbsp;つ、<b>入ってきた値を反対にして出す</b>ものがあります。0 が入れば 1、1 が入れば 0 です。入口が 1&nbsp;本しかないので、表も 2&nbsp;行で済みます。<button class="hk-chip" type="button" data-hk="nikai"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.5a2.4 2.4 0 1 1 3.3 2.2c-.6.3-.9.7-.9 1.3v.5M12 16.5v.01"/></svg>2 回続けて反対にすると</button></p>
+
+  <p>この 3&nbsp;つのつなぎ方には名前がついていて、次のページから<b>論理積回路（AND 回路）</b>・<b>論理和回路（OR 回路）</b>・<b>否定回路（NOT 回路）</b>と呼びます。組合せを並べた表は<b>真理値表</b>といいます。</p>
 
   <details class="glossary">
     <summary>用語のおさらい</summary>
     <div style="padding:2px 18px 18px">
       <dl class="gloss">
-        <dt>探索<span class="en">search</span></dt><dd>たくさんの中から目的の 1 つを見つけること。</dd>
-        <dt>線形探索<span class="en">linear search</span></dt><dd>端から順に 1 つずつ調べる方法。並んでいなくても使えます。</dd>
-        <dt>二分探索<span class="en">binary search</span></dt><dd>真ん中と比べて半分を捨てることをくり返す方法。並んでいるときだけ使えます。</dd>
+        <dt>真理値表<span class="en">truth table</span></dt><dd>入力の 0 と 1 の組合せをすべて並べ、それぞれの出力を書いた表。入力が 2 つなら 4 行になります。</dd>
+        <dt>論理積回路（AND 回路）</dt><dd>この頁の「1 本の線につなぐ」です。二つの入力がともに 1 のときだけ、出力が 1 になります。</dd>
+        <dt>論理和回路（OR 回路）</dt><dd>この頁の「2 本に分けてつなぐ」です。いずれか一方が 1 であれば出力が 1 になります。両方 1 でも 1 です。</dd>
+        <dt>否定回路（NOT 回路）</dt><dd>この頁の「反対にする」です。入力を反転した値を出力します。</dd>
       </dl>
     </div>
   </details>
 
-  <p class="foot">並んでいるから、半分に切れます。捨てるときは、比べた真ん中も一緒に外します。</p>
+  <p class="foot">押すか戻すかの組合せを、上から順に全部並べます。ランプの列は 1 行ずつ確かめます。</p>
   <nav class="sernav" aria-label="ページ送り">
     <span></span>
     <a class="sn-up" href="index.html">この回の一覧へ</a>
-    <a class="sn-next" href="01-han-i.html">次：調べ終えた中央は、範囲から外す<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+    <a class="sn-next" href="01-ichigyo.html">次：違うのは、両方押した 1 行だけ<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
   </nav>
 </main>
 <div class="hk-ov" id="hk-ov" role="dialog" aria-modal="true" aria-label="補足">
@@ -2485,367 +2510,701 @@ main.page h2{font-size:28px !important}
 
 </script>
 <script>
-/* ===================== MATERIAL — イチから図解：2 つの探し方 ==================
+/* ===================== MATERIAL — イチから図解：スイッチとランプで表を作る ====
    4 つの場面を 1 枚の canvas で切り替える。
    （静止図を 4 枚縦に並べると、説明モードは最初の .figbox しか借りないので
      2 枚目以降が投影で消える。場面を切り替える形にすると全部が投影に乗る。）
 
-   数は独立に検算した:
-     a = [16, 23, 31, 48, 52, 65, 79]（7 個・添字 0〜6）から 52（添字 4）を探す。
-     端から順に  … 16,23,31,48,52 を比べて 5 回。
-     半分ずつ    … m=3(48<52 → i=4) / m=5(65>52 → j=4) / m=4(52 一致) で 3 回。
-   場面 3・4 で捨てるのは「小さいほうの半分」。52 は 48 より大きいので、
-   捨てる側に探している値は入っていない。
+   数の正本 = specs/logic-gates.spec.md（非公開）。独立検算済み（python・総当たり）。
+     1 本の線につなぐ（AND） = 0・0・0・1
+     2 本に分けてつなぐ（OR） = 0・1・1・1
+     反対にする（NOT）        = 1・0
+   原本 = 学習ノート POINT 16 ③④⑤ ／ ベストフィット 3章09。
+
+   ★ この頁では AND・OR・NOT・真理値表という語をまだ前面に出さない。
+     「1 本の線につなぐ」「2 本に分けてつなぐ」「反対にする」で通す（用語をほとんど
+     使わない頁）。本文の最後でだけ名前を渡し、01 から正式な語に移る。
    ============================================================================ */
 (function(){
   "use strict";
 
-  var cv = document.getElementById('cv');
-  var K = window.KC;
+  var cv  = document.getElementById('cv');
+  var ctx = cv.getContext('2d');
+  var K   = window.KC;
+  var W = 0, H = 0;
+
   var el = {
-    banner: document.getElementById('banner'),
-    cbox: document.getElementById('cbox'),
-    cap: document.getElementById('scene-cap'),
-    lin: document.getElementById('ro-lin'),
-    bin: document.getElementById('ro-bin'),
-    sorted: document.getElementById('t-sorted')
+    banner:document.getElementById('banner'), cbox:document.getElementById('cbox'),
+    cap:document.getElementById('stage-cap'), leg:document.getElementById('leg'),
+    rw:document.getElementById('rw'), rwval:document.getElementById('rwval'),
+    roComb:document.getElementById('ro-comb'), roLamp:document.getElementById('ro-lamp'),
+    roN:document.getElementById('ro-n'),
+    labComb:document.getElementById('lab-comb'), labLamp:document.getElementById('lab-lamp'),
+    rowComb:document.getElementById('row-comb'), rowSw:document.getElementById('row-sw'),
+    rowNot:document.getElementById('row-not'),  rowView:document.getElementById('row-view')
   };
 
-  var SORTED   = [16, 23, 31, 48, 52, 65, 79];
-  var SHUFFLED = [48, 16, 79, 31, 23, 65, 52];
-  var TARGET = 52;
-  var scene = 1;
-
-  function arr(){ return el.sorted.checked ? SORTED : SHUFFLED; }
   function MF(px){ return Math.round(px * (window.ZOOM || 1) * 10) / 10; }
   /* ★ 図の中の文字は CSS では変えられない。canvas に JS が直接描いている。
-     以前は 12〜16px・下限 12px で、太さを渡さない呼び出しは既定の細字だった。
      呼び出しを 1 つずつ直すと必ず漏れるので、組み立てる関数側でまとめて上げる。 */
   function F(px, w){ return (w || '600') + ' '
     + MF(Math.max(15, Math.round(px * 1.35))) + 'px ' + window.JPFONT; }
+  function FM(px){ return '600 ' + MF(Math.max(15, Math.round(px * 1.35)))
+    + 'px ' + window.MONOFONT; }
 
-  /* 箱を 1 列描く。opt = {mid, hit, cross, dim:[], order:{}} */
-  function row(o, opt){
-    var c = o.c, W = o.w, a = arr(), n = a.length, gap = 7;
-    var bw = Math.max(30, Math.min(54, Math.floor((W - 36 - gap * (n - 1)) / n)));
-    var bh = 40;
-    var ox = Math.round((W - (bw * n + gap * (n - 1))) / 2), oy = 44;
-    var okc = K('--k-main'), warnc = K('--k-warn');
-    for(var k = 0; k < n; k++){
-      var x = ox + k * (bw + gap);
-      var dim = (opt.dim || []).indexOf(k) >= 0;
-      var isMid = (opt.mid === k), isHit = (opt.hit === k);
-      c.setLineDash([]);
-      c.fillStyle = dim ? K('--k-dim') : (isHit ? K('--k-hit') : K('--k-paper'));
-      c.fillRect(x, oy, bw, bh);
-      c.lineWidth = (isMid || isHit) ? 2.4 : 1.2;
-      c.strokeStyle = isMid ? okc : (isHit ? okc : (dim ? K('--k-dimbd') : K('--k-line2')));
-      c.strokeRect(x, oy, bw, bh);
-      c.fillStyle = dim ? K('--k-dimink') : K('--k-ink');
-      c.font = F(14, '700'); c.textAlign = 'center'; c.textBaseline = 'middle';
-      c.fillText(String(a[k]), x + bw / 2, oy + bh / 2);
-      c.textBaseline = 'alphabetic';
-      /* 添字 */
-      c.fillStyle = dim ? K('--k-dimink') : K('--k-inksoft'); c.font = F(11);
-      c.fillText(String(k), x + bw / 2, oy + bh + 15);
-      /* 比べた順番 */
-      if(opt.order && opt.order[k]){
-        c.fillStyle = okc; c.font = F(11.5, '700');
-        c.fillText(String(opt.order[k]) + ' 回目', x + bw / 2, oy - 10);
+  /* 器の幅に収めて描く。収まらなければ級数を下げ、それでも無理なら文字単位で折る。
+     返り値は使った行数。
+     ★ canvas の外へ出た文字は画素に現れないので、画素走査でも当たり判定の検査でも
+       鳴らない。390px の実機で見出しが左右へ抜けた前例がある。 */
+  function drawFit(t, px, x, y, align, maxW, w, lh){
+    var p = px, wt = w || '700';
+    ctx.textAlign = align;
+    while(p > 11){
+      ctx.font = F(p, wt);
+      if(ctx.measureText(t).width <= maxW) break;
+      p -= 0.5;
+    }
+    ctx.font = F(Math.max(11, p), wt);
+    if(ctx.measureText(t).width <= maxW){ ctx.fillText(t, x, y); return 1; }
+    var lines = [], cur = '';
+    for(var k = 0; k < t.length; k++){
+      var c1 = t.charAt(k);
+      if(cur && ctx.measureText(cur + c1).width > maxW){ lines.push(cur); cur = c1; }
+      else { cur += c1; }
+    }
+    if(cur) lines.push(cur);
+    for(var q = 1; q < lines.length; q++){
+      while(lines[q] && '。、」）'.indexOf(lines[q].charAt(0)) >= 0){
+        lines[q - 1] += lines[q].charAt(0);
+        lines[q] = lines[q].slice(1);
       }
-      /* 比べて外れた真ん中の × */
-      if(opt.cross === k){
-        c.strokeStyle = K('--k-gray'); c.lineWidth = 1.8; var p = 9;
+    }
+    for(var r = 0; r < lines.length; r++) ctx.fillText(lines[r], x, y + r * (lh || 19));
+    return lines.length;
+  }
+
+  /* ===== 数理 =====
+     入力の並びは A・B の順に 00・01・10・11（原本の行順）。 */
+  var ROWS = [[0,0],[0,1],[1,0],[1,1]];
+  function fAnd(a, b){ return (a && b) ? 1 : 0; }
+  function fOr(a, b){ return (a || b) ? 1 : 0; }
+  function fNot(a){ return a ? 0 : 1; }
+
+  var stage = 1, A = 0, B = 1, nIn = 0, view = 'lamp';
+  var HIT = [];
+
+  function rwi(){ return Math.max(1, Math.min(4, parseInt(el.rw.value, 10))); }
+  function out(){ return stage === 2 ? fAnd(A, B) : (stage === 3 ? fOr(A, B) : -1); }
+  function fn(){ return stage === 2 ? fAnd : fOr; }
+
+  /* ===== 描き物の部品 ===== */
+  function lamp(c, x, y, r, on, undecided){
+    c.beginPath(); c.arc(x, y, r, 0, Math.PI * 2);
+    c.fillStyle = undecided ? K('--k-dim') : (on ? K('--k-ok') : K('--k-paper'));
+    c.fill();
+    c.lineWidth = 2; c.strokeStyle = undecided ? K('--k-dimbd')
+      : (on ? K('--k-ok') : K('--k-line2'));
+    c.stroke();
+    if(on && !undecided){
+      c.strokeStyle = K('--k-ok'); c.lineWidth = 2;
+      for(var i = 0; i < 6; i++){
+        var t = i * Math.PI / 3;
         c.beginPath();
-        c.moveTo(x+p, oy+p); c.lineTo(x+bw-p, oy+bh-p);
-        c.moveTo(x+bw-p, oy+p); c.lineTo(x+p, oy+bh-p);
+        c.moveTo(x + Math.cos(t) * (r + 4), y + Math.sin(t) * (r + 4));
+        c.lineTo(x + Math.cos(t) * (r + 9), y + Math.sin(t) * (r + 9));
         c.stroke();
       }
-      /* 真ん中の印 */
-      if(isMid){
-        c.fillStyle = okc; c.font = F(11.5, '700');
-        c.fillText('真ん中', x + bw / 2, oy - 10);
+    }
+    c.fillStyle = undecided ? K('--k-dimink') : (on ? K('--k-paper') : K('--k-inksoft'));
+    ctx.font = F(12.5, '800'); c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.fillText(undecided ? '？' : String(on), x, y + 1);
+    c.textBaseline = 'alphabetic';
+  }
+
+  /* スイッチ 1 個。押されていれば線がつながり、戻していれば切れている。 */
+  function swtch(c, x, y, w2, on, label, hit){
+    c.strokeStyle = K('--k-line2'); c.lineWidth = 2.4;
+    c.beginPath(); c.moveTo(x, y); c.lineTo(x + 8, y); c.stroke();
+    c.beginPath(); c.moveTo(x + w2 - 8, y); c.lineTo(x + w2, y); c.stroke();
+    c.beginPath(); c.arc(x + 8, y, 3, 0, Math.PI * 2);
+    c.fillStyle = K('--k-inksoft'); c.fill();
+    c.beginPath(); c.arc(x + w2 - 8, y, 3, 0, Math.PI * 2); c.fill();
+    c.strokeStyle = on ? K('--k-ok') : K('--k-inksoft'); c.lineWidth = 3;
+    c.beginPath(); c.moveTo(x + 8, y);
+    if(on) c.lineTo(x + w2 - 8, y); else c.lineTo(x + w2 - 11, y - 13);
+    c.stroke();
+    c.fillStyle = on ? K('--k-ok') : K('--k-inksoft');
+    ctx.font = F(12, '800'); c.textAlign = 'center';
+    c.fillText(label + ' ' + (on ? 1 : 0), x + w2 / 2, y + 26);
+    if(hit) HIT.push({x:x, y:y - 20, w:w2, h:44, k:label});
+  }
+
+  function wire(c, x0, y0, x1, y1, live){
+    c.strokeStyle = live ? K('--k-ok') : K('--k-line2');
+    c.lineWidth = live ? 3 : 2.2;
+    c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.stroke();
+  }
+
+  /* 真理値表。cols は見出し、rows は [[a,b,out],...]。now は強調する行。
+     fillTo が与えられたら、そこまでの行だけ出力を書く。 */
+  function table(c, x, y, w2, cols, rows, now, fillTo, hit){
+    var n = rows.length, nc = cols.length;
+    var hh = 26, rh = Math.max(24, Math.min(32, (H - y - 30) / (n + 1)));
+    var cw = w2 / nc;
+    c.fillStyle = K('--k-tint');
+    window.roundRect(c, x, y, w2, hh, 6); c.fill();
+    ctx.font = F(11.5, '800'); c.textAlign = 'center';
+    c.fillStyle = K('--k-deep');
+    for(var j = 0; j < nc; j++) c.fillText(cols[j], x + cw * j + cw / 2, y + hh / 2 + 4);
+    for(var i = 0; i < n; i++){
+      var yy = y + hh + rh * i, isNow = (i === now);
+      if(isNow){
+        c.fillStyle = K('--k-hit');
+        window.roundRect(c, x - 3, yy + 1, w2 + 6, rh - 2, 5); c.fill();
       }
+      c.strokeStyle = K('--k-line'); c.lineWidth = 1;
+      c.beginPath(); c.moveTo(x, yy + rh); c.lineTo(x + w2, yy + rh); c.stroke();
+      for(var j2 = 0; j2 < nc; j2++){
+        var v = rows[i][j2];
+        var shown = (j2 < nc - 1) || (fillTo === undefined || i <= fillTo);
+        /* ★ まだ決めていない印の「？」は文字列なので、真偽で色を選ぶと truthy になり
+           「点灯」と同じ緑で出る。未定が点灯に見えるのは意味の誤り。先に弾く。 */
+        var undecided = (v === '？');
+        ctx.font = F(j2 === nc - 1 ? 14 : 12.5, '800');
+        c.fillStyle = (j2 === nc - 1)
+          ? ((!shown || undecided) ? K('--k-dimink')
+             : (v ? K('--k-ok') : K('--k-inksoft')))
+          : K('--k-ink');
+        c.fillText(shown ? String(v) : '・', x + cw * j2 + cw / 2, yy + rh / 2 + 5);
+      }
+      if(hit) HIT.push({x:x, y:yy, w:w2, h:rh, r:i});
     }
-    return {ox:ox, oy:oy, bw:bw, bh:bh, gap:gap, n:n};
+    return y + hh + rh * n;
   }
 
-  function draw(){
-    var o = window.SETUP(cv, 150);
-    var c = o.c, W = o.w;
-    c.clearRect(0, 0, W, o.h);
-    var sortedNow = el.sorted.checked;
-    var a = arr();
-    var opt = {};
+  /* ===== 場面① 2 つで 4 通り ===== */
+  function drawStage1(){
+    var r = rwi() - 1;
+    A = ROWS[r][0]; B = ROWS[r][1];
+    var narrow = W < 560;
+    ctx.fillStyle = K('--k-deep');
+    var h1 = drawFit('スイッチ 2 つで、押す・戻すの組合せは 4 通りです',
+      13, 14, 26, 'left', W - 28, '800');
+    var top = 26 + h1 * 21;
 
-    if(scene === 1){
-      opt = {hit: a.indexOf(TARGET)};
-    } else if(scene === 2){
-      var order = {}, k;
-      for(k = 0; k <= a.indexOf(TARGET); k++) order[k] = k + 1;
-      opt = {order: order, hit: a.indexOf(TARGET)};
-    } else if(scene === 3){
-      opt = sortedNow ? {mid: 3, dim: [0, 1, 2]} : {mid: 3};
+    if(narrow || view === 'table'){
+      var tw = Math.min(W - 40, 300);
+      table(ctx, (W - tw) / 2, top + 6, tw, ['A', 'B', 'ランプ'],
+        ROWS.map(function(q){ return [q[0], q[1], '？']; }), r, undefined, true);
+      if(window.__setHit) window.__setHit(HIT);
+      return;
+    }
+    var lw = Math.min(250, W * 0.44), lx = 16;
+    var cy = top + 46;
+    var sw5 = Math.min(96, lw - 30), rx = lx + sw5 + 58;
+    swtch(ctx, lx, cy, sw5, A, 'A', true);
+    swtch(ctx, lx, cy + 62, sw5, B, 'B', true);
+    /* ★ つなぎ方はまだ決めていないので、経路は点線にしておく。
+       線が 1 本も無いと、スイッチとランプが宙に浮いた記号に見える。 */
+    ctx.save();
+    ctx.setLineDash([4, 4]);
+    ctx.strokeStyle = K('--k-line2'); ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(lx + sw5, cy); ctx.lineTo(rx - 20, cy + 31); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(lx + sw5, cy + 62); ctx.lineTo(rx - 20, cy + 31); ctx.stroke();
+    ctx.restore();
+    lamp(ctx, rx, cy + 31, 17, 0, true);
+    ctx.fillStyle = K('--k-inksoft');
+    drawFit('つなぎ方はまだ決めていません', 11.5, lx, cy + 106, 'left', lw, '700');
+
+    var tx = lx + lw + 14, tw2 = W - tx - 16;
+    table(ctx, tx, top + 6, Math.max(150, tw2), ['A', 'B', 'ランプ'],
+      ROWS.map(function(q){ return [q[0], q[1], '？']; }), r, undefined, true);
+    if(window.__setHit) window.__setHit(HIT);
+  }
+
+  /* ===== 場面②③ 1 本の線／2 本に分けて ===== */
+  function drawCircuit(){
+    var isAnd = (stage === 2);
+    var f = fn(), o = f(A, B);
+    var narrow = W < 560;
+    ctx.fillStyle = K('--k-deep');
+    var ttl = isAnd ? '1 本の線に 2 つとも置くと、両方押したときだけ通ります'
+                    : '2 本に分けて置くと、どちらか押せば通ります';
+    var h1 = drawFit(ttl, 13, 14, 26, 'left', W - 28, '800');
+    var top = 26 + h1 * 21;
+
+    if(narrow || view === 'table'){
+      var tw = Math.min(W - 40, 300);
+      table(ctx, (W - tw) / 2, top + 6, tw, ['A', 'B', 'ランプ'],
+        ROWS.map(function(q){ return [q[0], q[1], f(q[0], q[1])]; }),
+        ROWS.findIndex(function(q){ return q[0] === A && q[1] === B; }),
+        undefined, true);
+      if(window.__setHit) window.__setHit(HIT);
+      return;
+    }
+    var lw = Math.min(268, W * 0.46), lx = 16, sw2 = Math.min(80, lw - 90);
+    var cy = top + 52;
+
+    if(isAnd){
+      /* 直列。電源 → A → B → ランプ */
+      wire(ctx, lx, cy, lx + 10, cy, true);
+      swtch(ctx, lx + 10, cy, sw2, A, 'A', true);
+      wire(ctx, lx + 10 + sw2, cy, lx + 18 + sw2, cy, A === 1);
+      swtch(ctx, lx + 18 + sw2, cy, sw2, B, 'B', true);
+      wire(ctx, lx + 18 + sw2 * 2, cy, lx + 30 + sw2 * 2, cy, o === 1);
+      lamp(ctx, lx + 48 + sw2 * 2, cy, 16, o, false);
     } else {
-      opt = sortedNow ? {cross: 3, dim: [0, 1, 2, 3]} : {mid: 3};
+      /* 並列。電源から 2 本に分かれ、どちらかが通ればランプへ */
+      var x0 = lx + 10, x1 = lx + 10 + sw2, yA = cy - 24, yB = cy + 24;
+      wire(ctx, lx, cy, x0, cy, true);
+      wire(ctx, x0, yA, x0, yB, true);
+      swtch(ctx, x0, yA, sw2, A, 'A', true);
+      swtch(ctx, x0, yB, sw2, B, 'B', true);
+      wire(ctx, x1, yA, x1 + 12, yA, A === 1);
+      wire(ctx, x1, yB, x1 + 12, yB, B === 1);
+      wire(ctx, x1 + 12, yA, x1 + 12, yB, o === 1);
+      wire(ctx, x1 + 12, cy, x1 + 26, cy, o === 1);
+      lamp(ctx, x1 + 44, cy, 16, o, false);
     }
-    var g = row(o, opt);
+    ctx.fillStyle = o ? K('--k-ok') : K('--k-inksoft');
+    drawFit(o ? '電気が通ってランプが点きました' : 'どこかで切れているので点きません',
+      11.5, lx, cy + (isAnd ? 62 : 82), 'left', lw + 40, '700');
 
-    /* 見出しは箱の上、説明は箱の下。どちらも箱と重ねない */
-    c.fillStyle = K('--k-inksoft'); c.font = F(12.5, '700'); c.textAlign = 'center';
-    var head = ['', 'この中から ' + TARGET + ' を見つけます',
-                '端から順に 1 つずつ比べます',
-                '真ん中の 48 と比べます',
-                '比べた真ん中も、次の範囲から外します'][scene];
-    c.fillText(head, W / 2, 22);
-
-    c.font = F(11.5); c.fillStyle = K('--k-inkfaint');
-    var sub = '';
-    if(scene === 2) sub = a.indexOf(TARGET) + 1 + ' 回目で見つかりました';
-    else if(scene === 3) sub = sortedNow ? '52 は 48 より大きいので、小さいほうの半分を捨てます'
-                                         : '並んでいないので、どちらの半分にあるか決められません';
-    else if(scene === 4) sub = sortedNow ? '×の箱が、比べて外れた真ん中です'
-                                         : '半分を捨てられないので、この手順は使えません';
-    if(sub) c.fillText(sub, W / 2, g.oy + g.bh + 38);
+    var tx = lx + lw + 20, tw2 = W - tx - 16;
+    table(ctx, tx, top + 6, Math.max(150, tw2), ['A', 'B', 'ランプ'],
+      ROWS.map(function(q){ return [q[0], q[1], f(q[0], q[1])]; }),
+      ROWS.findIndex(function(q){ return q[0] === A && q[1] === B; }), undefined, true);
+    if(window.__setHit) window.__setHit(HIT);
   }
+
+  /* ===== 場面④ 反対にする ===== */
+  function drawStage4(){
+    ctx.fillStyle = K('--k-deep');
+    var h1 = drawFit('入ってきた値を反対にして出します', 13, 14, 26, 'left', W - 28, '800');
+    var top = 26 + h1 * 21;
+    var o = fNot(nIn);
+    var cx = Math.min(W * 0.42, 230), cy = top + 56;
+
+    wire(ctx, 20, cy, cx - 26, cy, true);
+    ctx.fillStyle = K('--k-paper'); ctx.strokeStyle = K('--k-main'); ctx.lineWidth = 2.4;
+    ctx.beginPath();
+    ctx.moveTo(cx - 26, cy - 22); ctx.lineTo(cx - 26, cy + 22); ctx.lineTo(cx + 14, cy);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.arc(cx + 20, cy, 6, 0, Math.PI * 2);
+    ctx.fillStyle = K('--k-paper'); ctx.fill(); ctx.stroke();
+    wire(ctx, cx + 26, cy, cx + 56, cy, true);
+
+    ctx.textAlign = 'center';
+    ctx.fillStyle = nIn ? K('--k-ok') : K('--k-inksoft');
+    ctx.font = F(17, '800'); ctx.fillText(String(nIn), 20 + (cx - 46) / 2, cy - 12);
+    ctx.fillStyle = o ? K('--k-ok') : K('--k-inksoft');
+    ctx.font = F(17, '800'); ctx.fillText(String(o), cx + 44, cy - 12);
+    ctx.fillStyle = K('--k-inkfaint'); ctx.font = F(11, '700');
+    ctx.fillText('入る', 20 + (cx - 46) / 2, cy + 26);
+    ctx.fillText('出る', cx + 44, cy + 26);
+
+    var tx = Math.min(cx + 86, W - 150), tw2 = W - tx - 16;
+    table(ctx, tx, top + 6, Math.max(130, tw2), ['入る', '出る'],
+      [[0, 1], [1, 0]], nIn, undefined, false);
+    ctx.fillStyle = K('--k-deep');
+    drawFit('入口が 1 本なので、行は 2 つで足ります', 11.5, 14, cy + 62, 'left', W - 28, '700');
+    if(window.__setHit) window.__setHit(HIT);
+  }
+
+  /* ===== 組み立て ===== */
+  function draw(){
+    /* ★ 高さは内容から見積もる。幅の比で決めると、表が 4 行しかない場面で
+       器の下半分が白のまま残る（1440px で 392px の器に 199px しか描いていなかった）。 */
+    var cw0 = cv.clientWidth || cv.parentNode.clientWidth || 600;
+    var narrow = cw0 < 560;
+    var hh0 = (stage === 4) ? (narrow ? 236 : 220) : (narrow ? 300 : 252);
+    var d = window.SETUP(cv, hh0);
+    W = d.w; H = d.h;
+    ctx.clearRect(0, 0, W, H);
+    ctx.textBaseline = 'alphabetic';
+    HIT = [];
+    if(stage === 1) drawStage1();
+    else if(stage === 4) drawStage4();
+    else drawCircuit();
+  }
+
+  function showRow(node, on){ if(node) node.style.display = on ? '' : 'none'; }
 
   function update(){
-    var a = arr(), sortedNow = el.sorted.checked;
-    el.lin.textContent = String(a.indexOf(TARGET) + 1);
-    el.bin.textContent = sortedNow ? '3' : '—';
+    showRow(el.rowComb, stage === 1);
+    showRow(el.rowSw,   stage === 2 || stage === 3);
+    showRow(el.rowNot,  stage === 4);
+    showRow(el.rowView, stage !== 4);
+    showRow(el.leg,     true);
+    el.rwval.textContent = String(rwi());
 
-    var warn = (!sortedNow && scene >= 3);
-    el.cbox.className = 'canvas-box ' + (warn ? 'warn' : 'ok');
-    el.banner.className = 'banner ' + (warn ? 'warn' : 'ok');
-    if(warn){
-      el.banner.innerHTML = '⚠ 並んでいないので、半分を捨てられません'
-        + '<small>真ん中と比べても、探している値が前にあるのか後ろにあるのかが決まりません。'
-        + '半分ずつ絞る方法は、小さい順に並んでいるときだけ使えます。</small>';
+    if(stage === 1){
+      var r = rwi() - 1; A = ROWS[r][0]; B = ROWS[r][1];
+      el.banner.innerHTML = '✓ ' + (r + 1) + ' 番目の組合せです'
+        + '<small>A が ' + A + '、B が ' + B + '。'
+        + 'この 4 通りを上から順に並べておくと、数え落としが出ません。</small>';
+    } else if(stage === 4){
+      el.banner.innerHTML = '✓ ' + nIn + ' を入れると ' + fNot(nIn) + ' が出ます'
+        + '<small>入ってきた値を反対にして出します。'
+        + '入口が 1 本しかないので、組合せは 2 通りで済みます。</small>';
     } else {
-      var msg = ['', 'たくさんの中から 1 つを見つけます',
-                 '端から順に比べると ' + (a.indexOf(TARGET) + 1) + ' 回かかります',
-                 '真ん中と比べると、半分をまとめて捨てられます',
-                 '比べた真ん中も外すので、次に調べる箱は 2 個になります'][scene];
-      el.banner.innerHTML = '✓ ' + msg + '<small>場面のボタンで、順に見ていけます。'
-        + '「小さい順に並べておく」を外すと、半分ずつの方法が使えなくなることも確かめられます。</small>';
+      var o = out();
+      var same = (stage === 2)
+        ? 'どちらか片方だけでは、線が切れたままです'
+        : '2 本のうち 1 本でもつながれば、電気は通ります';
+      el.banner.innerHTML = (o
+        ? '✓ ランプが点きました'
+        : '✓ ランプは点きません')
+        + '<small>A が ' + A + '、B が ' + B + ' です。' + same + '。</small>';
+    }
+
+    /* ★ 段階 4 は入口が 1 本で、スイッチの組合せでもランプでもない。
+       値だけ入れ替えて名前を据え置くと、指標の名前と中身が食い違う。
+       01 の段階 4 でも同じことをしていた。名前ごと持ち替える。 */
+    if(stage === 4){
+      el.labComb.textContent = '入ってくる値';
+      el.roComb.textContent = String(nIn);
+      el.labLamp.textContent = '出ていく値';
+      el.roLamp.textContent = String(fNot(nIn));
+      el.roN.textContent = '2';
+    } else {
+      el.labComb.textContent = 'いまの組合せ';
+      el.roComb.textContent = 'A ' + A + ' ・ B ' + B;
+      el.labLamp.textContent = 'ランプ';
+      el.roLamp.textContent = (stage === 1) ? 'まだ' : (out() ? '点' : '消');
+      el.roN.textContent = '4';
     }
 
     el.cap.innerHTML = ['',
-      'まずは、探すというのがどういうことかを見ます。',
-      '先頭から順に比べていきます。後ろにある数ほど、回数が増えます。',
-      '小さい順に並んでいれば、真ん中と比べるだけで、どちらの半分にあるかが決まります。',
-      '捨てるときは、比べた真ん中も一緒に外します。もう調べる必要がないからです。'][scene];
+      'つまみで組合せを送ると、表のどの行にあたるかが分かります。',
+      'スイッチを押して、両方押したときだけ点くことを確かめてみてください。',
+      'スイッチを押して、片方でも点くこと、両方押しても点くことを見てみてください。',
+      '入る値を替えると、出る値が入れかわります。'][stage];
 
     draw();
+    document.querySelectorAll('.qstage').forEach(function(b){
+      b.classList.toggle('active', +b.dataset.stage === stage);
+    });
+    document.querySelectorAll('#stages .step').forEach(function(s2){
+      s2.classList.toggle('on', +s2.dataset.stage === stage);
+    });
+    document.querySelectorAll('.qbtn[data-sw]').forEach(function(b){
+      /* ★ ラベルは動かさない。押すたびに名前が変わると、検査はボタンを同定できず
+         「どの段階でも出てこない」と誤って報告する。状態は active だけで示す。 */
+      b.classList.toggle('active', b.dataset.sw === 'a' ? A === 1 : B === 1);
+    });
+    document.querySelectorAll('.qbtn[data-n]').forEach(function(b){
+      b.classList.toggle('active', +b.dataset.n === nIn);
+    });
+    document.querySelectorAll('.qbtn[data-v]').forEach(function(b){
+      b.classList.toggle('active', b.dataset.v === view);
+    });
   }
 
-  document.querySelectorAll('.qbtn[data-scene]').forEach(function(b){
+  /* ===== 結線 ===== */
+  document.querySelectorAll('.qstage').forEach(function(b){
+    b.addEventListener('click', function(){ stage = +b.dataset.stage; update(); });
+  });
+  document.querySelectorAll('#stages .step').forEach(function(s2){
+    s2.style.cursor = 'pointer';
+    s2.addEventListener('click', function(){ stage = +s2.dataset.stage; update(); });
+  });
+  document.querySelectorAll('.qbtn[data-sw]').forEach(function(b){
     b.addEventListener('click', function(){
-      scene = parseInt(b.dataset.scene, 10);
-      document.querySelectorAll('.qbtn[data-scene]').forEach(function(o){
-        o.classList.toggle('active', o === b);
-      });
+      if(b.dataset.sw === 'a') A = A ? 0 : 1; else B = B ? 0 : 1;
       update();
     });
   });
-  el.sorted.addEventListener('change', update);
-  window.addEventListener('resize', function(){ draw(); });
-  window.REDRAW(function(){ draw(); });
+  document.querySelectorAll('.qbtn[data-n]').forEach(function(b){
+    b.addEventListener('click', function(){ nIn = +b.dataset.n; update(); });
+  });
+  document.querySelectorAll('.qbtn[data-v]').forEach(function(b){
+    b.addEventListener('click', function(){ view = b.dataset.v; update(); });
+  });
+  el.rw.addEventListener('input', update);
 
+  /* 図の中を直接押す。表の行ならその組合せへ、スイッチなら押す・戻すを替える。 */
+  window.__setHit = function(l){ HIT = l; };
+  cv.style.cursor = 'pointer';
+  cv.addEventListener('click', function(ev){
+    if(!HIT.length) return;
+    var r = cv.getBoundingClientRect();
+    var x = (ev.clientX - r.left) * (cv.clientWidth / r.width);
+    var y = (ev.clientY - r.top)  * (cv.clientHeight / r.height);
+    for(var k = 0; k < HIT.length; k++){
+      var h = HIT[k];
+      if(x >= h.x - 4 && x <= h.x + h.w + 4 && y >= h.y - 4 && y <= h.y + h.h + 4){
+        if(h.r !== undefined){
+          if(stage === 1){ el.rw.value = String(h.r + 1); }
+          else { A = ROWS[h.r][0]; B = ROWS[h.r][1]; }
+        } else if(h.k === 'A'){ A = A ? 0 : 1; }
+        else if(h.k === 'B'){ B = B ? 0 : 1; }
+        update();
+        return;
+      }
+    }
+  });
+
+  window.addEventListener('resize', draw);
+  window.REDRAW(draw);
+
+  /* ===== 補足（hosoku）— 中に操作子を入れる ===== */
   window.HK = {
-    'linear-itsu': {
-      k: '補足 ・ 端から順',
-      title: '前のほうにあるなら、端から順のほうが速い',
-      html: '<p>半分ずつの方法がいつでも速いわけではありません。'
-          + '<b>探す数が先頭に近いとき</b>は、端から順に見たほうが少ない回数で見つかります。</p>'
-          + '<div class="hk-qrow"><button class="hk-qbtn active" type="button" data-k="0">先頭の 16</button>'
-          + '<button class="hk-qbtn" type="button" data-k="1">真ん中の 48</button>'
-          + '<button class="hk-qbtn" type="button" data-k="2">末尾の 79</button></div>'
-          + window.FW('選んだ数について、端から順の回数と半分ずつの回数を棒で比べた図')
-          + '<div class="hk-num">先頭の 16 を探す → 端から順は <b>1 回</b>、半分ずつは <b>3 回</b>。'
-          + '末尾の 79 を探す → 端から順は <b>7 回</b>、半分ずつは <b>3 回</b>。</div>'
-          + '<div class="hk-key">' + window.BULB
-          + '<div>数が増えるほど差が開きます。<b>少ない個数では、どちらでも大差ありません</b>。</div></div>',
-      fig: function(cv, A){
-        var root = cv.closest('.hk-card');
-        var btns = root ? [].slice.call(root.querySelectorAll('.hk-qbtn')) : [];
-        var ROWS = [['先頭の 16', 1, 3], ['真ん中の 48', 4, 1], ['末尾の 79', 7, 3]];
-        var sel = 0;
+    yonhtsu: {
+      k:'補足 ・ 組合せの数', title:'スイッチが増えると、行は倍になります',
+      html:'<p>スイッチ 1 つなら、押す・戻すの 2 通りです。'
+        + '2 つになると、1 つめの 2 通りそれぞれに 2 通りずつ付くので <b>2 かける 2 で 4 通り</b>。'
+        + '3 つなら、さらに倍の 8 通りです。'
+        + 'ボタンでスイッチの数を替えて、枝分かれの数を見てみてください。</p>'
+        + '<div class="hk-qrow"><button class="hk-qbtn" type="button" data-k="1">1 つ</button>'
+        + '<button class="hk-qbtn active" type="button" data-k="2">2 つ</button>'
+        + '<button class="hk-qbtn" type="button" data-k="3">3 つ</button></div>'
+        + window.FW('スイッチの数だけ枝分かれする木の図。1 つで 2 通り、2 つで 4 通り、3 つで 8 通りに分かれる')
+        + '<div class="hk-num">1 つで 2 通り、2 つで 4 通り、3 つで 8 通り。'
+        + 'スイッチが n 個なら、2 を n 回かけた数だけ組合せがあります。</div>'
+        + '<div class="hk-key">' + window.BULB
+        + '<div>行の数が決まっているので、<b>数え落とせば必ず気づきます</b>。</div></div>',
+      fig:function(cv2, B2){
+        var root = cv2.closest('.hk-card'), n = 2;
         function paint(){
-          var d = A.setupMini(cv, 0.46, 156), c = d.c, W = d.w;
-          c.clearRect(0, 0, W, d.h);
-          var left = 96, right = W - 66, oy = 22, rh = 36, maxv = 7;
-          ROWS.forEach(function(r, k){
-            var on = (k === sel), y = oy + k * rh;
-            c.fillStyle = on ? A.INK : A.DIMINK;
-            c.font = '700 ' + A.fs(11.5) + 'px ' + A.font;
-            c.textAlign = 'left'; c.fillText(r[0], 8, y + 11);
-            c.fillStyle = A.LINE; c.fillRect(left, y, right - left, 11);
-            c.fillStyle = on ? A.GRAY : A.DIMBD;
-            c.fillRect(left, y, (right - left) * r[1] / maxv, 11);
-            c.fillStyle = on ? A.INKSOFT : A.DIMINK; c.font = A.fs(11) + 'px ' + A.font;
-            c.textAlign = 'left'; c.fillText('端から ' + r[1] + ' 回', right + 6, y + 10);
-            c.fillStyle = A.LINE; c.fillRect(left, y + 14, right - left, 11);
-            c.fillStyle = on ? A.MAIN : A.DIMBD;
-            c.fillRect(left, y + 14, (right - left) * r[2] / maxv, 11);
-            c.fillStyle = on ? A.MAIN : A.DIMINK; c.font = '700 ' + A.fs(11) + 'px ' + A.font;
-            c.textAlign = 'left'; c.fillText('半分 ' + r[2] + ' 回', right + 6, y + 24);
-          });
-          var r0 = ROWS[sel], tan = (r0[1] < r0[2]);
-          c.fillStyle = tan ? A.WARN : A.MAIN;
-          c.font = '700 ' + A.fs(11.5) + 'px ' + A.font; c.textAlign = 'left';
-          c.fillText(tan ? 'この数なら、端から順のほうが少ない回数です'
-                         : 'この数なら、半分ずつのほうが少ない回数です', 8, oy + 3 * rh + 14);
-        }
-        btns.forEach(function(b){
-          b.addEventListener('click', function(){
-            sel = +b.dataset.k;
-            btns.forEach(function(o){ o.classList.toggle('active', o === b); });
-            paint();
-          });
-        });
-        paint();
-      }
-    },
-
-    naraberu: {
-      k: '補足 ・ 使える条件',
-      title: '並んでいないと、半分を捨てられない',
-      html: '<p>真ん中と比べて「大きい・小さい」が分かっても、'
-          + '<b>並んでいなければ、探す値がどちらの半分にあるかは決まりません</b>。'
-          + '捨てた側に入っていることがあります。だから半分ずつの方法は使えません。</p>'
-          + '<div class="hk-qrow"><button class="hk-qbtn active" type="button" data-s="0">バラバラ</button>'
-          + '<button class="hk-qbtn" type="button" data-s="1">小さい順に並べる</button></div>'
-          + window.FW('同じ7個を、バラバラのときと小さい順のときで並べ、真ん中と比べた結果が使えるかどうかを示す図')
-          + '<div class="hk-num">並んでいない [48, 16, 79, 31, 23, 65, 52] で 52 を探すと、'
-          + '真ん中の 31 より大きいので後ろ半分を残す。しかし <b>52 は添字 6</b> にあり、'
-          + '残した側にたまたま入っているだけで、根拠がない。</div>'
-          + '<div class="hk-key">' + window.BULB
-          + '<div>上の図で「小さい順に並べておく」を外すと、この状態になります。</div></div>',
-      fig: function(cv, A){
-        var root = cv.closest('.hk-card');
-        var btns = root ? [].slice.call(root.querySelectorAll('.hk-qbtn')) : [];
-        var SH = [48, 16, 79, 31, 23, 65, 52], SO = [16, 23, 31, 48, 52, 65, 79];
-        var sorted = 0;
-        function paint(){
-          var d = A.setupMini(cv, 0.44, 150), c = d.c, W = d.w;
-          c.clearRect(0, 0, W, d.h);
-          var a = sorted ? SO : SH, n = 7, gap = 6;
-          var bw = Math.max(26, Math.min(44, Math.floor((W - 28 - gap * (n - 1)) / n))), bh = 34;
-          var ox = Math.round((W - (bw * n + gap * (n - 1))) / 2), oy = 34;
-          var ti = a.indexOf(52), back = (52 > a[3]);
-          for(var k = 0; k < n; k++){
-            var x = ox + k * (bw + gap);
-            var isMid = (k === 3), isT = (k === ti);
-            var keep = back ? (k > 3) : (k < 3);
-            c.fillStyle = isT ? A.HIT : (keep ? A.PAPER : A.DIM);
-            c.fillRect(x, oy, bw, bh);
-            c.lineWidth = (isMid || isT) ? 2.2 : 1.2;
-            c.strokeStyle = isMid ? A.WARN : (isT ? A.MAIN : (keep ? A.LINE2 : A.DIMBD));
-            c.strokeRect(x, oy, bw, bh);
-            c.fillStyle = (keep || isT) ? A.INK : A.DIMINK;
-            c.font = '700 ' + A.fs(12.5) + 'px ' + A.font;
-            c.textAlign = 'center'; c.textBaseline = 'middle';
-            c.fillText(String(a[k]), x + bw / 2, oy + bh / 2);
-            c.textBaseline = 'alphabetic';
+          var d = B2.setupMini(cv2, 0.5, 172), c = d.c, Wd = d.w, Hd = d.h;
+          c.clearRect(0, 0, Wd, Hd);
+          var leaves = Math.pow(2, n);
+          c.fillStyle = B2.DEEP; c.font = '800 ' + B2.fs(12.5) + 'px ' + B2.font;
+          c.textAlign = 'center';
+          c.fillText('スイッチ ' + n + ' つ → ' + leaves + ' 通り', Wd / 2, 22);
+          var top = 42, bot = Hd - 30, lvh = (bot - top) / n;
+          var pts = [Wd / 2];
+          c.lineWidth = 1.6;
+          for(var L = 0; L < n; L++){
+            var next = [], y0 = top + lvh * L, y1 = top + lvh * (L + 1);
+            var span = Wd / Math.pow(2, L + 2);
+            for(var i = 0; i < pts.length; i++){
+              [-1, 1].forEach(function(s){
+                var nx = pts[i] + s * span;
+                c.strokeStyle = s < 0 ? B2.LINE2 : B2.MAIN;
+                c.beginPath(); c.moveTo(pts[i], y0); c.lineTo(nx, y1); c.stroke();
+                next.push(nx);
+              });
+            }
+            pts = next;
           }
-          c.fillStyle = A.WARN; c.font = '700 ' + A.fs(11) + 'px ' + A.font; c.textAlign = 'center';
-          c.fillText('真ん中 ' + a[3], ox + 3 * (bw + gap) + bw / 2, oy - 8);
-          c.fillStyle = A.MAIN;
-          c.fillText('探す 52', ox + ti * (bw + gap) + bw / 2, oy + bh + 15);
-          c.fillStyle = sorted ? A.MAIN : A.WARN;
-          c.font = '700 ' + A.fs(11.5) + 'px ' + A.font; c.textAlign = 'center';
-          c.fillText(sorted ? '並んでいるので、残した側に必ずあります'
-                            : '並んでいないので、残した側にあるとは限りません', W / 2, oy + bh + 36);
+          c.fillStyle = B2.MAIN;
+          for(var j = 0; j < pts.length; j++){
+            c.beginPath(); c.arc(pts[j], bot, 4, 0, Math.PI * 2); c.fill();
+          }
+          c.fillStyle = B2.INKSOFT; c.font = '700 ' + B2.fs(11) + 'px ' + B2.font;
+          c.fillText('下の丸の数が、表の行の数です', Wd / 2, Hd - 9);
         }
-        btns.forEach(function(b){
-          b.addEventListener('click', function(){
-            sorted = +b.dataset.s;
-            btns.forEach(function(o){ o.classList.toggle('active', o === b); });
+        if(root) root.querySelectorAll('.hk-qbtn').forEach(function(b2){
+          b2.addEventListener('click', function(){
+            n = +b2.dataset.k;
+            root.querySelectorAll('.hk-qbtn').forEach(function(o){
+              o.classList.toggle('active', o === b2); });
             paint();
           });
         });
         paint();
       }
     },
-
-    chuuouchi: {
-      k: '補足 ・ 言葉の区別',
-      title: '「範囲の中央」は、統計の「中央値」ではない',
-      html: '<p>ここでいう真ん中は、<b>範囲の中央の添字</b>のことです。'
-          + '下限と上限から計算して決めます。'
-          + '統計で使う<b>中央値</b>は、値を小さい順に並べたときのまん中の<b>値</b>で、別のものです。</p>'
-          + '<div class="hk-ctl"><label>範囲の下限 i</label>'
-          + '<input class="hk-st" type="range" min="0" max="4" step="1" value="0" aria-label="範囲の下限">'
-          + '<span class="hk-out">0</span></div>'
-          + window.FW('下限を動かすと範囲の中央の添字だけが動き、統計の中央値は動かないことを並べて示した図')
-          + '<div class="hk-num">[16, 23, 31, 48, 52, 65, 79] のとき、'
-          + '範囲 0〜6 の中央の添字は <b>3</b>（その値は 48）。統計の中央値も 48。'
-          + '範囲が 4〜6 に狭まると、中央の添字は <b>5</b> になる。中央値は範囲では動かない。</div>'
-          + '<div class="hk-key">' + window.BULB
-          + '<div>探索で動かすのは<b>添字</b>のほうです。値の性質ではありません。</div></div>',
-      fig: function(cv, A){
-        var root = cv.closest('.hk-card');
-        var sl = root ? root.querySelector('.hk-st') : null;
-        var out = root ? root.querySelector('.hk-out') : null;
-        var a = [16, 23, 31, 48, 52, 65, 79], n = 7, gap = 6;
+    tsunagi: {
+      k:'補足 ・ つなぎ方', title:'2 本に分けると、両方押しても通ります',
+      html:'<p>1 本の線に 2 つ置いた形では、どちらかが切れていれば電気は止まります。'
+        + '2 本に分けた形では、<b>片方が切れていても、もう 1 本が通っていれば届きます</b>。'
+        + 'ここが大事なところで、'
+        + '<span class="mk">両方押したときも、2 本とも通っているので点きます</span>。'
+        + 'ボタンでつなぎ方を替えて、両方押した行を見比べてみてください。</p>'
+        + '<div class="hk-qrow"><button class="hk-qbtn active" type="button" data-k="and">1 本の線</button>'
+        + '<button class="hk-qbtn" type="button" data-k="or">2 本に分ける</button></div>'
+        + window.FW('1 本の線につないだ形と 2 本に分けた形を上下に並べ、両方押したときの電気の道を色で示した図')
+        + '<div class="hk-num">1 本の線にすると 0・0・0・1、2 本に分けると 0・1・1・1 です。'
+        + '4 行目はどちらも 1 になります。</div>'
+        + '<div class="hk-key">' + window.BULB
+        + '<div>「どちらか片方」と<b>「片方でもよい」は違います</b>。後者は両方でも通ります。</div></div>',
+      fig:function(cv2, B2){
+        var root = cv2.closest('.hk-card'), key = 'and';
         function paint(){
-          var lo = sl ? +sl.value : 0;
-          if(out) out.textContent = String(lo);
-          var d = A.setupMini(cv, 0.44, 148), c = d.c, W = d.w;
-          c.clearRect(0, 0, W, d.h);
-          var bw = Math.max(26, Math.min(44, Math.floor((W - 28 - gap * (n - 1)) / n))), bh = 32;
-          function band(oy, l, h, mid){
-            for(var k = 0; k < n; k++){
-              var x = Math.round((W - (bw * n + gap * (n - 1))) / 2) + k * (bw + gap);
-              var inR = (k >= l && k <= h);
-              c.fillStyle = inR ? A.PAPER : A.DIM;
-              c.fillRect(x, oy, bw, bh);
-              c.lineWidth = (k === mid) ? 2.2 : 1.1;
-              c.strokeStyle = (k === mid) ? A.MAIN : (inR ? A.LINE2 : A.DIMBD);
-              c.strokeRect(x, oy, bw, bh);
-              c.fillStyle = inR ? A.INK : A.DIMINK;
-              c.font = '700 ' + A.fs(12) + 'px ' + A.font;
-              c.textAlign = 'center'; c.textBaseline = 'middle';
-              c.fillText(String(a[k]), x + bw / 2, oy + bh / 2);
-              c.textBaseline = 'alphabetic';
+          var d = B2.setupMini(cv2, 0.54, 194), c = d.c, Wd = d.w, Hd = d.h;
+          c.clearRect(0, 0, Wd, Hd);
+          var isAnd = (key === 'and');
+          c.fillStyle = B2.DEEP; c.font = '800 ' + B2.fs(12.5) + 'px ' + B2.font;
+          c.textAlign = 'center';
+          c.fillText(isAnd ? '1 本の線に 2 つとも置く（両方押した状態）'
+                           : '2 本に分けて置く（両方押した状態）', Wd / 2, 22);
+          /* ★ スイッチの記号を描かないと、ただの直線とランプの丸になり、
+             「1 本の線に 2 つ置く」も「2 本に分ける」も図から読み取れない。
+             つなぎ方の違いを見せる図なので、つなぐ相手を省いてはいけない。 */
+          function swg(cx, yy, w3){
+            c.strokeStyle = B2.LINE2; c.lineWidth = 2.2;
+            c.beginPath(); c.moveTo(cx, yy); c.lineTo(cx + 7, yy); c.stroke();
+            c.beginPath(); c.moveTo(cx + w3 - 7, yy); c.lineTo(cx + w3, yy); c.stroke();
+            c.fillStyle = B2.INKSOFT;
+            c.beginPath(); c.arc(cx + 7, yy, 3, 0, Math.PI * 2); c.fill();
+            c.beginPath(); c.arc(cx + w3 - 7, yy, 3, 0, Math.PI * 2); c.fill();
+            c.strokeStyle = B2.OK; c.lineWidth = 3;
+            c.beginPath(); c.moveTo(cx + 7, yy); c.lineTo(cx + w3 - 7, yy); c.stroke();
+          }
+          var cy = Hd / 2 + 8, sw2 = Math.min(58, (Wd - 168) / 2), x0 = 20, lx;
+          c.lineWidth = 3; c.strokeStyle = B2.OK;
+          if(isAnd){
+            c.beginPath(); c.moveTo(x0, cy); c.lineTo(x0 + 8, cy); c.stroke();
+            swg(x0 + 8, cy, sw2);
+            c.strokeStyle = B2.OK; c.lineWidth = 3;
+            c.beginPath(); c.moveTo(x0 + 8 + sw2, cy); c.lineTo(x0 + 16 + sw2, cy); c.stroke();
+            swg(x0 + 16 + sw2, cy, sw2);
+            c.strokeStyle = B2.OK; c.lineWidth = 3;
+            c.beginPath(); c.moveTo(x0 + 16 + sw2 * 2, cy);
+            c.lineTo(x0 + 28 + sw2 * 2, cy); c.stroke();
+            c.fillStyle = B2.DEEP; c.font = '800 ' + B2.fs(11) + 'px ' + B2.font;
+            c.textAlign = 'center';
+            c.fillText('A 1', x0 + 8 + sw2 / 2, cy + 22);
+            c.fillText('B 1', x0 + 16 + sw2 * 1.5, cy + 22);
+            lx = x0 + 46 + sw2 * 2;
+          } else {
+            var yA = cy - 26, yB = cy + 26;
+            c.beginPath(); c.moveTo(x0, cy); c.lineTo(x0 + 8, cy); c.stroke();
+            c.beginPath(); c.moveTo(x0 + 8, yA); c.lineTo(x0 + 8, yB); c.stroke();
+            swg(x0 + 8, yA, sw2); swg(x0 + 8, yB, sw2);
+            c.strokeStyle = B2.OK; c.lineWidth = 3;
+            c.beginPath(); c.moveTo(x0 + 8 + sw2, yA); c.lineTo(x0 + 18 + sw2, yA); c.stroke();
+            c.beginPath(); c.moveTo(x0 + 8 + sw2, yB); c.lineTo(x0 + 18 + sw2, yB); c.stroke();
+            c.beginPath(); c.moveTo(x0 + 18 + sw2, yA); c.lineTo(x0 + 18 + sw2, yB); c.stroke();
+            c.beginPath(); c.moveTo(x0 + 18 + sw2, cy); c.lineTo(x0 + 28 + sw2, cy); c.stroke();
+            c.fillStyle = B2.DEEP; c.font = '800 ' + B2.fs(11) + 'px ' + B2.font;
+            c.textAlign = 'center';
+            c.fillText('A 1', x0 + 8 + sw2 / 2, yA - 11);
+            c.fillText('B 1', x0 + 8 + sw2 / 2, yB + 21);
+            lx = x0 + 46 + sw2;
+          }
+          c.beginPath(); c.arc(lx, cy, 14, 0, Math.PI * 2);
+          c.fillStyle = B2.OK; c.fill();
+          c.fillStyle = B2.PAPER; c.font = '800 ' + B2.fs(12) + 'px ' + B2.font;
+          c.textAlign = 'center'; c.fillText('1', lx, cy + 4);
+          c.fillStyle = B2.INKSOFT; c.font = '700 ' + B2.fs(11) + 'px ' + B2.font;
+          c.textAlign = 'left';
+          c.fillText(isAnd ? '両方押したので、1 本の線がつながりました'
+                           : '2 本とも通っているので、やはり点きます', 18, Hd - 12);
+        }
+        if(root) root.querySelectorAll('.hk-qbtn').forEach(function(b2){
+          b2.addEventListener('click', function(){
+            key = b2.dataset.k;
+            root.querySelectorAll('.hk-qbtn').forEach(function(o){
+              o.classList.toggle('active', o === b2); });
+            paint();
+          });
+        });
+        paint();
+      }
+    },
+    yomikata: {
+      k:'補足 ・ 表の読み方', title:'左が入れたもの、右が出てきたもの',
+      html:'<p>表の左側にはスイッチの状態、右側にはランプの状態を書きます。'
+        + '<b>1 行がスイッチの 1 通りの組合せ</b>にあたります。'
+        + '行を選ぶと、その組合せのときのスイッチとランプの絵に戻ります。'
+        + 'つまみで行を送って、絵と表を行ったり来たりしてみてください。</p>'
+        + '<div class="hk-ctl"><label class="sl" for="hkrow">行</label>'
+        + '<input id="hkrow" type="range" min="1" max="4" step="1" value="2" aria-label="行">'
+        + '</div>'
+        + window.FW('真理値表の 1 行を選ぶと、その組合せのスイッチとランプの絵が横に並んで出る図')
+        + '<div class="hk-num">2 行目は A が 0、B が 1 です。'
+        + '1 本の線につないだ形ではランプは 0、2 本に分けた形では 1 になります。</div>'
+        + '<div class="hk-key">' + window.BULB
+        + '<div>表の 1 行は、<b>絵 1 枚ぶん</b>です。読むときは絵に戻して確かめます。</div></div>',
+      fig:function(cv2, B2){
+        var root = cv2.closest('.hk-card');
+        var sl = root ? root.querySelector('#hkrow') : null;
+        function paint(){
+          var r = sl ? (+sl.value - 1) : 1;
+          var a = ROWS[r][0], b = ROWS[r][1];
+          var d = B2.setupMini(cv2, 0.44, 158), c = d.c, Wd = d.w, Hd = d.h;
+          c.clearRect(0, 0, Wd, Hd);
+          c.fillStyle = B2.DEEP; c.font = '800 ' + B2.fs(12.5) + 'px ' + B2.font;
+          c.textAlign = 'center';
+          c.fillText((r + 1) + ' 行目　A ' + a + ' ・ B ' + b, Wd / 2, 22);
+          var tw = Math.min(148, Wd * 0.42), tx = 14, hh = 22, rh = 22, ty = 38;
+          c.fillStyle = B2.TINT; c.fillRect(tx, ty, tw, hh);
+          c.fillStyle = B2.DEEP; c.font = '800 ' + B2.fs(11) + 'px ' + B2.font;
+          ['A', 'B', '1 本', '2 本'].forEach(function(t, j){
+            c.fillText(t, tx + tw / 8 + tw / 4 * j, ty + 15);
+          });
+          ROWS.forEach(function(q, i){
+            var yy = ty + hh + rh * i;
+            if(i === r){ c.fillStyle = B2.HIT; c.fillRect(tx - 2, yy, tw + 4, rh); }
+            var vals = [q[0], q[1], fAnd(q[0], q[1]), fOr(q[0], q[1])];
+            vals.forEach(function(v, j){
+              c.fillStyle = (j >= 2) ? (v ? B2.OK : B2.INKSOFT) : B2.INK;
+              c.font = '800 ' + B2.fs(11.5) + 'px ' + B2.font;
+              c.fillText(String(v), tx + tw / 8 + tw / 4 * j, yy + 15);
+            });
+            c.strokeStyle = B2.LINE; c.lineWidth = 1;
+            c.beginPath(); c.moveTo(tx, yy + rh); c.lineTo(tx + tw, yy + rh); c.stroke();
+          });
+          var px = tx + tw + 26, cy = Hd / 2 + 4;
+          [['A', a, cy - 20], ['B', b, cy + 20]].forEach(function(p){
+            c.strokeStyle = p[1] ? B2.OK : B2.INKSOFT; c.lineWidth = 3;
+            c.beginPath(); c.moveTo(px, p[2]);
+            if(p[1]) c.lineTo(px + 34, p[2]); else c.lineTo(px + 28, p[2] - 11);
+            c.stroke();
+            c.fillStyle = p[1] ? B2.OK : B2.INKSOFT;
+            c.font = '800 ' + B2.fs(11) + 'px ' + B2.font; c.textAlign = 'left';
+            c.fillText(p[0] + ' ' + p[1], px + 42, p[2] + 4);
+          });
+        }
+        if(sl) sl.addEventListener('input', paint);
+        paint();
+      }
+    },
+    nikai: {
+      k:'補足 ・ 2 回かける', title:'反対の反対は、もとに戻ります',
+      html:'<p>反対にするものを 2 つ続けてつなぐと、<b>もとの値に戻ります</b>。'
+        + '0 は 1 になり、そのあともう一度反対にされて 0 に戻ります。'
+        + 'そのため、この形を 2 つ重ねても何も変わりません。'
+        + 'つまみで、値が 2 回入れかわるようすを送ってみてください。</p>'
+        + '<div class="hk-ctl"><label class="sl" for="hknot">どこまで通したか</label>'
+        + '<input id="hknot" type="range" min="0" max="2" step="1" value="1" aria-label="どこまで通したか">'
+        + '</div>'
+        + window.FW('0 が 2 つの反転を通って 1 になり、また 0 に戻るようすを左から右へ並べた図')
+        + '<div class="hk-num">入口が 0、1 つめを通ると 1、2 つめを通ると 0。'
+        + '入口が 1 なら 0 になり、また 1 に戻ります。</div>'
+        + '<div class="hk-key">' + window.BULB
+        + '<div>この性質は、<b>次の頁で和を作るとき</b>に使います。</div></div>',
+      fig:function(cv2, B2){
+        var root = cv2.closest('.hk-card');
+        var sl = root ? root.querySelector('#hknot') : null;
+        function paint(){
+          var n = sl ? +sl.value : 1;
+          var d = B2.setupMini(cv2, 0.4, 148), c = d.c, Wd = d.w, Hd = d.h;
+          c.clearRect(0, 0, Wd, Hd);
+          var vals = [0, 1, 0], cy = Hd / 2 + 4;
+          var step = Math.min(96, (Wd - 60) / 2.4);
+          c.fillStyle = B2.DEEP; c.font = '800 ' + B2.fs(12.5) + 'px ' + B2.font;
+          c.textAlign = 'center';
+          c.fillText('反対にするものを 2 つ続ける', Wd / 2, 22);
+          for(var i = 0; i <= 2; i++){
+            var x = 26 + step * i;
+            c.fillStyle = (i <= n) ? (vals[i] ? B2.OK : B2.INKSOFT) : B2.DIMINK;
+            c.font = '800 ' + B2.fs(16) + 'px ' + B2.font;
+            c.fillText(String(vals[i]), x, cy + 6);
+            if(i < 2){
+              var live = (i < n);
+              c.strokeStyle = live ? B2.MAIN : B2.LINE2; c.lineWidth = live ? 2.6 : 2;
+              c.beginPath(); c.moveTo(x + 14, cy); c.lineTo(x + step - 24, cy); c.stroke();
+              c.fillStyle = live ? B2.MAIN : B2.LINE2;
+              B2.arrowHead(c, x + step - 16, cy, 'right');
+              c.fillStyle = B2.INKSOFT;
+              c.font = '700 ' + B2.fs(11) + 'px ' + B2.font;
+              c.fillText('反対に', x + step / 2 - 4, cy - 14);
             }
           }
-          c.fillStyle = A.INKSOFT; c.font = A.fs(11) + 'px ' + A.font; c.textAlign = 'center';
-          c.fillText('範囲 0〜6 → 中央の添字 3（値は 48）', W / 2, 20);
-          band(26, 0, 6, 3);
-          var mid2 = Math.floor((lo + 6) / 2);
-          c.fillStyle = A.INKSOFT; c.textAlign = 'center';
-          c.fillText('範囲 ' + lo + '〜6 → 中央の添字 ' + mid2 + '（値は ' + a[mid2] + '）', W / 2, 78);
-          band(84, lo, 6, mid2);
-          c.fillStyle = A.MAIN; c.font = '700 ' + A.fs(11) + 'px ' + A.font; c.textAlign = 'center';
-          c.fillText('動くのは添字。統計の中央値は 48 のまま', W / 2, 84 + bh + 16);
+          c.fillStyle = B2.INKSOFT; c.font = '700 ' + B2.fs(11) + 'px ' + B2.font;
+          c.fillText(n === 2 ? 'もとの 0 に戻りました' : (n === 1 ? '1 回通って 1 です' : 'まだ通していません'),
+            Wd / 2, Hd - 12);
         }
         if(sl) sl.addEventListener('input', paint);
         paint();
       }
     }
-
   };
-
-  /* 左の梯子（#stages .step）から場面を切り替える。図の上のボタンと同じことをする。
-     既存のボタンの処理には手を入れず、押下を回して選択表示だけ合わせる。 */
-  (function(){
-    var steps = [].slice.call(document.querySelectorAll('#stages .step'));
-    if(!steps.length) return;
-    function sync(n){ steps.forEach(function(s2){
-      s2.classList.toggle('on', +s2.dataset.scene === n); }); }
-    steps.forEach(function(s2){
-      s2.addEventListener('click', function(){
-        var b = document.querySelector('.qbtn[data-scene="' + s2.dataset.scene + '"]');
-        if(b) b.click();
-      });
-    });
-    document.querySelectorAll('.qbtn[data-scene]').forEach(function(b){
-      b.addEventListener('click', function(){ sync(+b.dataset.scene); });
-    });
-    sync(1);
-  })();
 
   update();
 })();

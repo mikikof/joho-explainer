@@ -1,18 +1,13 @@
 <!doctype html>
 <!--
-  情報 解説Webツール — イチから図解：2 つの探し方
-  第7回 探索のアルゴリズム（00）。
-  ★ このファイルは生成物。手で直さない。
-    中身  = dist/binary-search/_src/00-hajimete.body.html ＋ 00-hajimete.mat.js
-    外枠  = _series/engine.css ＋ _series/engine.js
-    組む  = python3 _series/build_series.py binary-search
-  外部依存ゼロ（CDN・Webフォント・KaTeX・Chart.js 不使用）。localStorage 不使用。
+  情報 解説Webツール — 「どちらか一方のときだけ」は OR ではない（回ハブ）
+  ★ 生成物。手で直さない。台帳 = dist/logic-gates/_src/series.toml
 -->
 <html lang="ja">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>イチから図解：2 つの探し方 ｜ mikikof-lab</title>
+<title>「どちらか一方のときだけ」は OR ではない（この回の一覧）｜ mikikof-lab</title>
 <style>
 /* ============================================================================
    情報 解説Webツール — シリーズ engine（共有の外枠）
@@ -1772,111 +1767,73 @@ main.page h2{font-size:28px !important}
   .hk-card .hk-ctl .hk-out{font-size:21px !important}
 }
 
+/* ハブ固有（カードの一覧） */
+.list{display:flex; flex-direction:column; gap:14px}
+a.card{display:flex; gap:17px; align-items:flex-start; text-decoration:none; color:inherit;
+  background:var(--paper); border:1px solid var(--line-2); border-radius:14px; padding:19px 21px;
+  transition:.14s}
+a.card:hover{border-color:var(--navy-mid); box-shadow:0 4px 16px rgba(47,85,212,.10);
+  transform:translateY(-1px)}
+.card.soon{opacity:.62; background:var(--subtle); border-style:dashed}
+.num{flex:none; width:46px; height:46px; border-radius:12px; background:var(--navy);
+  border:1px solid var(--navy); color:#fff; display:flex; align-items:center; justify-content:center;
+  font-weight:700; font-size:16px; font-family:var(--mono)}
+.num.wk{background:var(--warm); border-color:var(--warm)}
+.num.em{background:#1f7a4d; border-color:#1f7a4d}
+.num.soon{background:var(--subtle); border-color:var(--line-2); color:var(--ink-faint)}
+.cbody{flex:1; min-width:0}
+.ct{display:flex; align-items:center; gap:9px; flex-wrap:wrap; margin-bottom:4px}
+.ctt{font-size:17.5px; font-weight:700; color:var(--ink)}
+.tag{font-size:11.5px; color:var(--navy); background:var(--navy-tint);
+  border:1px solid var(--navy-tint-bd); border-radius:999px; padding:2px 9px; font-weight:700}
+.cd{font-size:14px; color:var(--ink-soft); margin:0; line-height:1.66}
+.go{flex:none; align-self:center; color:var(--ink-faint); display:flex}
+a.card:hover .go{color:var(--navy)}
+.go svg{width:20px; height:20px}
+html[data-theme="dark"] a.card{background:var(--paper)}
+html[data-theme="dark"] .card.soon{background:var(--subtle)}
+html[data-theme="dark"] .num{color:#0c1016}
+@media(max-width:600px){ a.card{padding:15px; gap:13px} .num{width:40px; height:40px; font-size:15px} }
 </style>
 </head>
 <body>
-<button id="pres-toggle" class="pres-toggle" title="説明モード（投影・収録用）">
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
-  <span>説明</span>
-</button>
 <button id="theme-toggle" class="theme-toggle" title="ライト／ダークの切り替え">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
   <span id="theme-label">ダーク</span>
 </button>
 <main class="page">
-  <div class="kicker">
-    <span class="badge">第7回 探索のアルゴリズム</span>
-    <span class="badge em">いちばんやさしい</span>
-    <span>用語をほとんど使いません</span>
-  </div>
-
-  <h1>イチから図解：​2 つの探し方</h1>
-  <p class="lead">たくさんの数の中から 1 つを見つけます。端から順に見ていく方法と、真ん中と比べて半分を捨てる方法を、図だけで並べます。</p>
-
-  <h2><span class="bar"></span>動かして確かめる</h2>
-  <p>図の上の<b>場面</b>を切り替えると、探し方が順に現れます。<b>小さい順に並べておく</b>を外すと、半分を捨てられなくなります。</p>
-
-  <div class="figbox" id="fig-basic">
-    <div class="zoomrow">
-      <button class="fig-zoom" type="button" data-fig="fig-basic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>拡大して見る</button>
-    </div>
-
-    <div id="banner" class="banner ok"></div>
-
-    <div id="cbox" class="canvas-box ok">
-      <canvas id="cv" role="img" aria-label="7 個の数を並べた箱の図。場面を進めると、線形探索で先頭から順に比べるようす、二分探索で真ん中と比べて小さいほうの半分を薄く消すようす、比べた真ん中にも×を付けて次の範囲から外すようすが、順に現れる。"></canvas>
-    </div>
-
-    <div class="panel">
-      <div class="qrow">
-        <span class="qcap">場面</span>
-        <button class="qbtn active" type="button" data-scene="1"><span class="n">1</span>探すということ</button>
-        <button class="qbtn" type="button" data-scene="2"><span class="n">2</span>端から順に</button>
-        <button class="qbtn" type="button" data-scene="3"><span class="n">3</span>半分を捨てる</button>
-        <button class="qbtn" type="button" data-scene="4"><span class="n">4</span>真ん中も外す</button>
+  <div class="kicker"><span class="badge">情報Ⅰ 2学期</span><span class="badge">第3回 論理回路と真理値表</span></div>
+  <h1>「どちらか一方のときだけ」は OR ではない</h1>
+  <p class="lead">階段の上と下にスイッチがあり、どちらからでもランプを点けたり消したりできます。両方を押すと、ランプは消えます。この動きを真理値表に書くと 4 行になりますが、「どちらかが 1 なら 1」の OR と比べて違うのは、両方押した 1 行だけです。3 行が合ってしまうので、最後の行まで確かめないと気づきません。</p>
+  <div class="list">
+    <a class="card" href="00-hajimete.html">
+      <div class="num em">00</div>
+      <div class="cbody">
+        <div class="ct"><span class="ctt">イチから図解：スイッチとランプで表を作る</span><span class="tag">いちばんやさしい</span></div>
+        <p class="cd">スイッチを押すとランプがどうなるか。直列と並列のつなぎ方と、組合せを並べた表を、図だけで見ます。用語をほとんど使いません。</p>
       </div>
-      <div class="switches">
-        <label class="sw"><input type="checkbox" id="t-sorted" checked><span class="track"></span>小さい順に並べておく</label>
+      <span class="go"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+    </a>
+    <a class="card" href="01-ichigyo.html">
+      <div class="num">01</div>
+      <div class="cbody">
+        <div class="ct"><span class="ctt">違うのは、両方押した 1 行だけ</span><span class="tag">山場</span><span class="tag">動かす</span></div>
+        <p class="cd">階段スイッチ・OR・AND を切り替えて、同じ 4 行を並べます。OR と食い違うのは最後の 1 行だけです。3 か所のスイッチにすると 8 行になります。</p>
       </div>
-    </div>
-
-    <div class="metrics">
-      <div class="mcard hl"><p class="mlab">探す数</p><p class="mval">52</p></div>
-      <div class="mcard"><p class="mlab">端から順に</p><p class="mval"><span id="ro-lin">5</span> 回</p></div>
-      <div class="mcard"><p class="mlab">半分ずつなら</p><p class="mval"><span id="ro-bin">3</span> 回</p></div>
-    </div>
-
-    <p class="cap" id="scene-cap"></p>
+      <span class="go"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+    </a>
+    <a class="card" href="02-kasan.html">
+      <div class="num wk">02</div>
+      <div class="cbody">
+        <div class="ct"><span class="ctt">1 桁の足し算は、この 2 つの表でできる</span><span class="tag">深掘り</span></div>
+        <p class="cd">和 S は「どちらか一方のときだけ 1」、桁上げ C は両方 1 のときだけ 1 です。表を埋める順と、階段の配線も見ます。</p>
+      </div>
+      <span class="go"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+    </a>
   </div>
-
-  <div class="steps" id="stages">
-    <div class="step on" data-scene="1"><span class="sno">1</span><div class="sbody"><div class="smath">探すということ</div><div class="snote">たくさんの中から目的の 1 つを見つけます。コンピュータは決まった手順で、1 つずつ確かめていきます。</div></div></div>
-    <div class="step" data-scene="2"><span class="sno">2</span><div class="sbody"><div class="smath">端から順に</div><div class="snote">先頭から 1 つずつ比べます。前のほうにあれば少ない回数で見つかり、後ろにあるほど回数が増えます。</div></div></div>
-    <div class="step" data-scene="3"><span class="sno">3</span><div class="sbody"><div class="smath">半分を捨てる</div><div class="snote">真ん中と比べて、いらないほうの半分を<b>まるごと</b>捨てます。小さい順に並んでいるときだけできます。</div></div></div>
-    <div class="step" data-scene="4"><span class="sno">4</span><div class="sbody"><div class="smath">真ん中も外す</div><div class="snote">比べた真ん中にも × が付きます。比べて外れたのですから、もう調べる必要がありません。</div></div></div>
-  </div>
-
-  <h2><span class="bar"></span>場面の説明</h2>
-
-  <p><b>探す</b>というのは、たくさんの中から目的の 1 つを見つけることです。名簿から名前を見つける、辞書から言葉を見つける。どれも探しています。コンピュータは決まった手順で、1 つずつ確かめていきます。</p>
-
-  <p><b>端から順に 1 つずつ</b>比べる方法を、線形探索といいます。前のほうにあれば少ない回数で見つかり、後ろにあるほど回数が増えます。<b>並んでいなくても使えます。</b><button class="hk-chip" type="button" data-hk="linear-itsu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.5a2.4 2.4 0 1 1 3.3 2.2c-.6.3-.9.7-.9 1.3v.5M12 16.5v.01"/></svg>端から順が速いことも？</button></p>
-
-  <p><b>真ん中と比べて半分を捨てる</b>方法を、二分探索といいます。小さい順に並んでいれば、真ん中と比べるだけで「前にあるか、後ろにあるか」が決まります。決まれば、いらないほうの半分を<b>まるごと</b>捨てられます。<button class="hk-chip" type="button" data-hk="naraberu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.5a2.4 2.4 0 1 1 3.3 2.2c-.6.3-.9.7-.9 1.3v.5M12 16.5v.01"/></svg>並んでいないとどうなる？</button></p>
-
-  <p>捨てるとき、<b>比べた真ん中も一緒に捨てます</b>。真ん中は比べて外れたのですから、もう調べる必要がありません。上の場面 4 で、×が付いた箱がそれです。<button class="hk-chip" type="button" data-hk="chuuouchi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.5a2.4 2.4 0 1 1 3.3 2.2c-.6.3-.9.7-.9 1.3v.5M12 16.5v.01"/></svg>「中央値」とは別の言葉？</button></p>
-
-  <details class="glossary">
-    <summary>用語のおさらい</summary>
-    <div style="padding:2px 18px 18px">
-      <dl class="gloss">
-        <dt>探索<span class="en">search</span></dt><dd>たくさんの中から目的の 1 つを見つけること。</dd>
-        <dt>線形探索<span class="en">linear search</span></dt><dd>端から順に 1 つずつ調べる方法。並んでいなくても使えます。</dd>
-        <dt>二分探索<span class="en">binary search</span></dt><dd>真ん中と比べて半分を捨てることをくり返す方法。並んでいるときだけ使えます。</dd>
-      </dl>
-    </div>
-  </details>
-
-  <p class="foot">並んでいるから、半分に切れます。捨てるときは、比べた真ん中も一緒に外します。</p>
-  <nav class="sernav" aria-label="ページ送り">
-    <span></span>
-    <a class="sn-up" href="index.html">この回の一覧へ</a>
-    <a class="sn-next" href="01-han-i.html">次：調べ終えた中央は、範囲から外す<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
-  </nav>
+  <hr class="div">
+  <p class="foot">mikikof-lab ／ 情報Ⅰ 2学期 第3回（単一 HTML・外部ライブラリ不使用）</p>
 </main>
-<div class="hk-ov" id="hk-ov" role="dialog" aria-modal="true" aria-label="補足">
-  <div class="hk-card">
-    <div class="hk-head"><div><p class="hk-k">補足</p><h4>—</h4></div>
-      <button class="hk-close" type="button" aria-label="補足を閉じる"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
-    <div class="hk-body"></div>
-  </div>
-</div>
-<div class="zoom-ov" id="zoom" role="dialog" aria-modal="true" aria-label="図の拡大表示">
-  <div class="zoom-stage">
-    <button class="zoom-close" id="zoom-close" type="button" aria-label="拡大を閉じる"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>閉じる</button>
-    <div id="zoom-host"></div>
-  </div>
-</div>
 <script>
 /* ============================================================================
    情報 解説Webツール — シリーズ engine（共有 JS）
@@ -2481,373 +2438,6 @@ main.page h2{font-size:28px !important}
       else if(document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
     }
   });
-})();
-
-</script>
-<script>
-/* ===================== MATERIAL — イチから図解：2 つの探し方 ==================
-   4 つの場面を 1 枚の canvas で切り替える。
-   （静止図を 4 枚縦に並べると、説明モードは最初の .figbox しか借りないので
-     2 枚目以降が投影で消える。場面を切り替える形にすると全部が投影に乗る。）
-
-   数は独立に検算した:
-     a = [16, 23, 31, 48, 52, 65, 79]（7 個・添字 0〜6）から 52（添字 4）を探す。
-     端から順に  … 16,23,31,48,52 を比べて 5 回。
-     半分ずつ    … m=3(48<52 → i=4) / m=5(65>52 → j=4) / m=4(52 一致) で 3 回。
-   場面 3・4 で捨てるのは「小さいほうの半分」。52 は 48 より大きいので、
-   捨てる側に探している値は入っていない。
-   ============================================================================ */
-(function(){
-  "use strict";
-
-  var cv = document.getElementById('cv');
-  var K = window.KC;
-  var el = {
-    banner: document.getElementById('banner'),
-    cbox: document.getElementById('cbox'),
-    cap: document.getElementById('scene-cap'),
-    lin: document.getElementById('ro-lin'),
-    bin: document.getElementById('ro-bin'),
-    sorted: document.getElementById('t-sorted')
-  };
-
-  var SORTED   = [16, 23, 31, 48, 52, 65, 79];
-  var SHUFFLED = [48, 16, 79, 31, 23, 65, 52];
-  var TARGET = 52;
-  var scene = 1;
-
-  function arr(){ return el.sorted.checked ? SORTED : SHUFFLED; }
-  function MF(px){ return Math.round(px * (window.ZOOM || 1) * 10) / 10; }
-  /* ★ 図の中の文字は CSS では変えられない。canvas に JS が直接描いている。
-     以前は 12〜16px・下限 12px で、太さを渡さない呼び出しは既定の細字だった。
-     呼び出しを 1 つずつ直すと必ず漏れるので、組み立てる関数側でまとめて上げる。 */
-  function F(px, w){ return (w || '600') + ' '
-    + MF(Math.max(15, Math.round(px * 1.35))) + 'px ' + window.JPFONT; }
-
-  /* 箱を 1 列描く。opt = {mid, hit, cross, dim:[], order:{}} */
-  function row(o, opt){
-    var c = o.c, W = o.w, a = arr(), n = a.length, gap = 7;
-    var bw = Math.max(30, Math.min(54, Math.floor((W - 36 - gap * (n - 1)) / n)));
-    var bh = 40;
-    var ox = Math.round((W - (bw * n + gap * (n - 1))) / 2), oy = 44;
-    var okc = K('--k-main'), warnc = K('--k-warn');
-    for(var k = 0; k < n; k++){
-      var x = ox + k * (bw + gap);
-      var dim = (opt.dim || []).indexOf(k) >= 0;
-      var isMid = (opt.mid === k), isHit = (opt.hit === k);
-      c.setLineDash([]);
-      c.fillStyle = dim ? K('--k-dim') : (isHit ? K('--k-hit') : K('--k-paper'));
-      c.fillRect(x, oy, bw, bh);
-      c.lineWidth = (isMid || isHit) ? 2.4 : 1.2;
-      c.strokeStyle = isMid ? okc : (isHit ? okc : (dim ? K('--k-dimbd') : K('--k-line2')));
-      c.strokeRect(x, oy, bw, bh);
-      c.fillStyle = dim ? K('--k-dimink') : K('--k-ink');
-      c.font = F(14, '700'); c.textAlign = 'center'; c.textBaseline = 'middle';
-      c.fillText(String(a[k]), x + bw / 2, oy + bh / 2);
-      c.textBaseline = 'alphabetic';
-      /* 添字 */
-      c.fillStyle = dim ? K('--k-dimink') : K('--k-inksoft'); c.font = F(11);
-      c.fillText(String(k), x + bw / 2, oy + bh + 15);
-      /* 比べた順番 */
-      if(opt.order && opt.order[k]){
-        c.fillStyle = okc; c.font = F(11.5, '700');
-        c.fillText(String(opt.order[k]) + ' 回目', x + bw / 2, oy - 10);
-      }
-      /* 比べて外れた真ん中の × */
-      if(opt.cross === k){
-        c.strokeStyle = K('--k-gray'); c.lineWidth = 1.8; var p = 9;
-        c.beginPath();
-        c.moveTo(x+p, oy+p); c.lineTo(x+bw-p, oy+bh-p);
-        c.moveTo(x+bw-p, oy+p); c.lineTo(x+p, oy+bh-p);
-        c.stroke();
-      }
-      /* 真ん中の印 */
-      if(isMid){
-        c.fillStyle = okc; c.font = F(11.5, '700');
-        c.fillText('真ん中', x + bw / 2, oy - 10);
-      }
-    }
-    return {ox:ox, oy:oy, bw:bw, bh:bh, gap:gap, n:n};
-  }
-
-  function draw(){
-    var o = window.SETUP(cv, 150);
-    var c = o.c, W = o.w;
-    c.clearRect(0, 0, W, o.h);
-    var sortedNow = el.sorted.checked;
-    var a = arr();
-    var opt = {};
-
-    if(scene === 1){
-      opt = {hit: a.indexOf(TARGET)};
-    } else if(scene === 2){
-      var order = {}, k;
-      for(k = 0; k <= a.indexOf(TARGET); k++) order[k] = k + 1;
-      opt = {order: order, hit: a.indexOf(TARGET)};
-    } else if(scene === 3){
-      opt = sortedNow ? {mid: 3, dim: [0, 1, 2]} : {mid: 3};
-    } else {
-      opt = sortedNow ? {cross: 3, dim: [0, 1, 2, 3]} : {mid: 3};
-    }
-    var g = row(o, opt);
-
-    /* 見出しは箱の上、説明は箱の下。どちらも箱と重ねない */
-    c.fillStyle = K('--k-inksoft'); c.font = F(12.5, '700'); c.textAlign = 'center';
-    var head = ['', 'この中から ' + TARGET + ' を見つけます',
-                '端から順に 1 つずつ比べます',
-                '真ん中の 48 と比べます',
-                '比べた真ん中も、次の範囲から外します'][scene];
-    c.fillText(head, W / 2, 22);
-
-    c.font = F(11.5); c.fillStyle = K('--k-inkfaint');
-    var sub = '';
-    if(scene === 2) sub = a.indexOf(TARGET) + 1 + ' 回目で見つかりました';
-    else if(scene === 3) sub = sortedNow ? '52 は 48 より大きいので、小さいほうの半分を捨てます'
-                                         : '並んでいないので、どちらの半分にあるか決められません';
-    else if(scene === 4) sub = sortedNow ? '×の箱が、比べて外れた真ん中です'
-                                         : '半分を捨てられないので、この手順は使えません';
-    if(sub) c.fillText(sub, W / 2, g.oy + g.bh + 38);
-  }
-
-  function update(){
-    var a = arr(), sortedNow = el.sorted.checked;
-    el.lin.textContent = String(a.indexOf(TARGET) + 1);
-    el.bin.textContent = sortedNow ? '3' : '—';
-
-    var warn = (!sortedNow && scene >= 3);
-    el.cbox.className = 'canvas-box ' + (warn ? 'warn' : 'ok');
-    el.banner.className = 'banner ' + (warn ? 'warn' : 'ok');
-    if(warn){
-      el.banner.innerHTML = '⚠ 並んでいないので、半分を捨てられません'
-        + '<small>真ん中と比べても、探している値が前にあるのか後ろにあるのかが決まりません。'
-        + '半分ずつ絞る方法は、小さい順に並んでいるときだけ使えます。</small>';
-    } else {
-      var msg = ['', 'たくさんの中から 1 つを見つけます',
-                 '端から順に比べると ' + (a.indexOf(TARGET) + 1) + ' 回かかります',
-                 '真ん中と比べると、半分をまとめて捨てられます',
-                 '比べた真ん中も外すので、次に調べる箱は 2 個になります'][scene];
-      el.banner.innerHTML = '✓ ' + msg + '<small>場面のボタンで、順に見ていけます。'
-        + '「小さい順に並べておく」を外すと、半分ずつの方法が使えなくなることも確かめられます。</small>';
-    }
-
-    el.cap.innerHTML = ['',
-      'まずは、探すというのがどういうことかを見ます。',
-      '先頭から順に比べていきます。後ろにある数ほど、回数が増えます。',
-      '小さい順に並んでいれば、真ん中と比べるだけで、どちらの半分にあるかが決まります。',
-      '捨てるときは、比べた真ん中も一緒に外します。もう調べる必要がないからです。'][scene];
-
-    draw();
-  }
-
-  document.querySelectorAll('.qbtn[data-scene]').forEach(function(b){
-    b.addEventListener('click', function(){
-      scene = parseInt(b.dataset.scene, 10);
-      document.querySelectorAll('.qbtn[data-scene]').forEach(function(o){
-        o.classList.toggle('active', o === b);
-      });
-      update();
-    });
-  });
-  el.sorted.addEventListener('change', update);
-  window.addEventListener('resize', function(){ draw(); });
-  window.REDRAW(function(){ draw(); });
-
-  window.HK = {
-    'linear-itsu': {
-      k: '補足 ・ 端から順',
-      title: '前のほうにあるなら、端から順のほうが速い',
-      html: '<p>半分ずつの方法がいつでも速いわけではありません。'
-          + '<b>探す数が先頭に近いとき</b>は、端から順に見たほうが少ない回数で見つかります。</p>'
-          + '<div class="hk-qrow"><button class="hk-qbtn active" type="button" data-k="0">先頭の 16</button>'
-          + '<button class="hk-qbtn" type="button" data-k="1">真ん中の 48</button>'
-          + '<button class="hk-qbtn" type="button" data-k="2">末尾の 79</button></div>'
-          + window.FW('選んだ数について、端から順の回数と半分ずつの回数を棒で比べた図')
-          + '<div class="hk-num">先頭の 16 を探す → 端から順は <b>1 回</b>、半分ずつは <b>3 回</b>。'
-          + '末尾の 79 を探す → 端から順は <b>7 回</b>、半分ずつは <b>3 回</b>。</div>'
-          + '<div class="hk-key">' + window.BULB
-          + '<div>数が増えるほど差が開きます。<b>少ない個数では、どちらでも大差ありません</b>。</div></div>',
-      fig: function(cv, A){
-        var root = cv.closest('.hk-card');
-        var btns = root ? [].slice.call(root.querySelectorAll('.hk-qbtn')) : [];
-        var ROWS = [['先頭の 16', 1, 3], ['真ん中の 48', 4, 1], ['末尾の 79', 7, 3]];
-        var sel = 0;
-        function paint(){
-          var d = A.setupMini(cv, 0.46, 156), c = d.c, W = d.w;
-          c.clearRect(0, 0, W, d.h);
-          var left = 96, right = W - 66, oy = 22, rh = 36, maxv = 7;
-          ROWS.forEach(function(r, k){
-            var on = (k === sel), y = oy + k * rh;
-            c.fillStyle = on ? A.INK : A.DIMINK;
-            c.font = '700 ' + A.fs(11.5) + 'px ' + A.font;
-            c.textAlign = 'left'; c.fillText(r[0], 8, y + 11);
-            c.fillStyle = A.LINE; c.fillRect(left, y, right - left, 11);
-            c.fillStyle = on ? A.GRAY : A.DIMBD;
-            c.fillRect(left, y, (right - left) * r[1] / maxv, 11);
-            c.fillStyle = on ? A.INKSOFT : A.DIMINK; c.font = A.fs(11) + 'px ' + A.font;
-            c.textAlign = 'left'; c.fillText('端から ' + r[1] + ' 回', right + 6, y + 10);
-            c.fillStyle = A.LINE; c.fillRect(left, y + 14, right - left, 11);
-            c.fillStyle = on ? A.MAIN : A.DIMBD;
-            c.fillRect(left, y + 14, (right - left) * r[2] / maxv, 11);
-            c.fillStyle = on ? A.MAIN : A.DIMINK; c.font = '700 ' + A.fs(11) + 'px ' + A.font;
-            c.textAlign = 'left'; c.fillText('半分 ' + r[2] + ' 回', right + 6, y + 24);
-          });
-          var r0 = ROWS[sel], tan = (r0[1] < r0[2]);
-          c.fillStyle = tan ? A.WARN : A.MAIN;
-          c.font = '700 ' + A.fs(11.5) + 'px ' + A.font; c.textAlign = 'left';
-          c.fillText(tan ? 'この数なら、端から順のほうが少ない回数です'
-                         : 'この数なら、半分ずつのほうが少ない回数です', 8, oy + 3 * rh + 14);
-        }
-        btns.forEach(function(b){
-          b.addEventListener('click', function(){
-            sel = +b.dataset.k;
-            btns.forEach(function(o){ o.classList.toggle('active', o === b); });
-            paint();
-          });
-        });
-        paint();
-      }
-    },
-
-    naraberu: {
-      k: '補足 ・ 使える条件',
-      title: '並んでいないと、半分を捨てられない',
-      html: '<p>真ん中と比べて「大きい・小さい」が分かっても、'
-          + '<b>並んでいなければ、探す値がどちらの半分にあるかは決まりません</b>。'
-          + '捨てた側に入っていることがあります。だから半分ずつの方法は使えません。</p>'
-          + '<div class="hk-qrow"><button class="hk-qbtn active" type="button" data-s="0">バラバラ</button>'
-          + '<button class="hk-qbtn" type="button" data-s="1">小さい順に並べる</button></div>'
-          + window.FW('同じ7個を、バラバラのときと小さい順のときで並べ、真ん中と比べた結果が使えるかどうかを示す図')
-          + '<div class="hk-num">並んでいない [48, 16, 79, 31, 23, 65, 52] で 52 を探すと、'
-          + '真ん中の 31 より大きいので後ろ半分を残す。しかし <b>52 は添字 6</b> にあり、'
-          + '残した側にたまたま入っているだけで、根拠がない。</div>'
-          + '<div class="hk-key">' + window.BULB
-          + '<div>上の図で「小さい順に並べておく」を外すと、この状態になります。</div></div>',
-      fig: function(cv, A){
-        var root = cv.closest('.hk-card');
-        var btns = root ? [].slice.call(root.querySelectorAll('.hk-qbtn')) : [];
-        var SH = [48, 16, 79, 31, 23, 65, 52], SO = [16, 23, 31, 48, 52, 65, 79];
-        var sorted = 0;
-        function paint(){
-          var d = A.setupMini(cv, 0.44, 150), c = d.c, W = d.w;
-          c.clearRect(0, 0, W, d.h);
-          var a = sorted ? SO : SH, n = 7, gap = 6;
-          var bw = Math.max(26, Math.min(44, Math.floor((W - 28 - gap * (n - 1)) / n))), bh = 34;
-          var ox = Math.round((W - (bw * n + gap * (n - 1))) / 2), oy = 34;
-          var ti = a.indexOf(52), back = (52 > a[3]);
-          for(var k = 0; k < n; k++){
-            var x = ox + k * (bw + gap);
-            var isMid = (k === 3), isT = (k === ti);
-            var keep = back ? (k > 3) : (k < 3);
-            c.fillStyle = isT ? A.HIT : (keep ? A.PAPER : A.DIM);
-            c.fillRect(x, oy, bw, bh);
-            c.lineWidth = (isMid || isT) ? 2.2 : 1.2;
-            c.strokeStyle = isMid ? A.WARN : (isT ? A.MAIN : (keep ? A.LINE2 : A.DIMBD));
-            c.strokeRect(x, oy, bw, bh);
-            c.fillStyle = (keep || isT) ? A.INK : A.DIMINK;
-            c.font = '700 ' + A.fs(12.5) + 'px ' + A.font;
-            c.textAlign = 'center'; c.textBaseline = 'middle';
-            c.fillText(String(a[k]), x + bw / 2, oy + bh / 2);
-            c.textBaseline = 'alphabetic';
-          }
-          c.fillStyle = A.WARN; c.font = '700 ' + A.fs(11) + 'px ' + A.font; c.textAlign = 'center';
-          c.fillText('真ん中 ' + a[3], ox + 3 * (bw + gap) + bw / 2, oy - 8);
-          c.fillStyle = A.MAIN;
-          c.fillText('探す 52', ox + ti * (bw + gap) + bw / 2, oy + bh + 15);
-          c.fillStyle = sorted ? A.MAIN : A.WARN;
-          c.font = '700 ' + A.fs(11.5) + 'px ' + A.font; c.textAlign = 'center';
-          c.fillText(sorted ? '並んでいるので、残した側に必ずあります'
-                            : '並んでいないので、残した側にあるとは限りません', W / 2, oy + bh + 36);
-        }
-        btns.forEach(function(b){
-          b.addEventListener('click', function(){
-            sorted = +b.dataset.s;
-            btns.forEach(function(o){ o.classList.toggle('active', o === b); });
-            paint();
-          });
-        });
-        paint();
-      }
-    },
-
-    chuuouchi: {
-      k: '補足 ・ 言葉の区別',
-      title: '「範囲の中央」は、統計の「中央値」ではない',
-      html: '<p>ここでいう真ん中は、<b>範囲の中央の添字</b>のことです。'
-          + '下限と上限から計算して決めます。'
-          + '統計で使う<b>中央値</b>は、値を小さい順に並べたときのまん中の<b>値</b>で、別のものです。</p>'
-          + '<div class="hk-ctl"><label>範囲の下限 i</label>'
-          + '<input class="hk-st" type="range" min="0" max="4" step="1" value="0" aria-label="範囲の下限">'
-          + '<span class="hk-out">0</span></div>'
-          + window.FW('下限を動かすと範囲の中央の添字だけが動き、統計の中央値は動かないことを並べて示した図')
-          + '<div class="hk-num">[16, 23, 31, 48, 52, 65, 79] のとき、'
-          + '範囲 0〜6 の中央の添字は <b>3</b>（その値は 48）。統計の中央値も 48。'
-          + '範囲が 4〜6 に狭まると、中央の添字は <b>5</b> になる。中央値は範囲では動かない。</div>'
-          + '<div class="hk-key">' + window.BULB
-          + '<div>探索で動かすのは<b>添字</b>のほうです。値の性質ではありません。</div></div>',
-      fig: function(cv, A){
-        var root = cv.closest('.hk-card');
-        var sl = root ? root.querySelector('.hk-st') : null;
-        var out = root ? root.querySelector('.hk-out') : null;
-        var a = [16, 23, 31, 48, 52, 65, 79], n = 7, gap = 6;
-        function paint(){
-          var lo = sl ? +sl.value : 0;
-          if(out) out.textContent = String(lo);
-          var d = A.setupMini(cv, 0.44, 148), c = d.c, W = d.w;
-          c.clearRect(0, 0, W, d.h);
-          var bw = Math.max(26, Math.min(44, Math.floor((W - 28 - gap * (n - 1)) / n))), bh = 32;
-          function band(oy, l, h, mid){
-            for(var k = 0; k < n; k++){
-              var x = Math.round((W - (bw * n + gap * (n - 1))) / 2) + k * (bw + gap);
-              var inR = (k >= l && k <= h);
-              c.fillStyle = inR ? A.PAPER : A.DIM;
-              c.fillRect(x, oy, bw, bh);
-              c.lineWidth = (k === mid) ? 2.2 : 1.1;
-              c.strokeStyle = (k === mid) ? A.MAIN : (inR ? A.LINE2 : A.DIMBD);
-              c.strokeRect(x, oy, bw, bh);
-              c.fillStyle = inR ? A.INK : A.DIMINK;
-              c.font = '700 ' + A.fs(12) + 'px ' + A.font;
-              c.textAlign = 'center'; c.textBaseline = 'middle';
-              c.fillText(String(a[k]), x + bw / 2, oy + bh / 2);
-              c.textBaseline = 'alphabetic';
-            }
-          }
-          c.fillStyle = A.INKSOFT; c.font = A.fs(11) + 'px ' + A.font; c.textAlign = 'center';
-          c.fillText('範囲 0〜6 → 中央の添字 3（値は 48）', W / 2, 20);
-          band(26, 0, 6, 3);
-          var mid2 = Math.floor((lo + 6) / 2);
-          c.fillStyle = A.INKSOFT; c.textAlign = 'center';
-          c.fillText('範囲 ' + lo + '〜6 → 中央の添字 ' + mid2 + '（値は ' + a[mid2] + '）', W / 2, 78);
-          band(84, lo, 6, mid2);
-          c.fillStyle = A.MAIN; c.font = '700 ' + A.fs(11) + 'px ' + A.font; c.textAlign = 'center';
-          c.fillText('動くのは添字。統計の中央値は 48 のまま', W / 2, 84 + bh + 16);
-        }
-        if(sl) sl.addEventListener('input', paint);
-        paint();
-      }
-    }
-
-  };
-
-  /* 左の梯子（#stages .step）から場面を切り替える。図の上のボタンと同じことをする。
-     既存のボタンの処理には手を入れず、押下を回して選択表示だけ合わせる。 */
-  (function(){
-    var steps = [].slice.call(document.querySelectorAll('#stages .step'));
-    if(!steps.length) return;
-    function sync(n){ steps.forEach(function(s2){
-      s2.classList.toggle('on', +s2.dataset.scene === n); }); }
-    steps.forEach(function(s2){
-      s2.addEventListener('click', function(){
-        var b = document.querySelector('.qbtn[data-scene="' + s2.dataset.scene + '"]');
-        if(b) b.click();
-      });
-    });
-    document.querySelectorAll('.qbtn[data-scene]').forEach(function(b){
-      b.addEventListener('click', function(){ sync(+b.dataset.scene); });
-    });
-    sync(1);
-  })();
-
-  update();
 })();
 
 </script>
