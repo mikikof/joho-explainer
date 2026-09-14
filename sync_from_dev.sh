@@ -7,7 +7,7 @@ DEV="/Users/mikiokofune/my-company/.company/media/webツール/情報"
 [[ -d "$DEV" ]] || { echo "ERROR: dev source not found: $DEV" >&2; exit 1; }
 # 末尾が / のものは複数ページのシリーズ（ディレクトリ）。解説ツールは順にこの形へ移る。
 # 旧 1 ファイル版は、ハブ index のカードを差し替えるまで残す（消すとリンクが切れる）。
-for f in sampling-theorem.html color-digitization.html image-resolution.html compression.html os-abstraction/ complement-subtraction/ logic-gates/ instruction-execution/ loop-range/ array-index-trace/ binary-search/; do
+for f in sampling-theorem.html color-digitization.html image-resolution.html compression.html os-abstraction/ complement-subtraction/ logic-gates/ instruction-execution/ loop-range/ array-index-trace/ binary-search/ update-order/ queue-start-time/; do
   if [[ "$f" == */ ]]; then
     d="${f%/}"
     # 消す先を取り違えないための歯止め（空・スラッシュ入り・..  を拒む）
